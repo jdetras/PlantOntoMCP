@@ -67,16 +67,17 @@ mcp = FastMCP("OntoMCP", lifespan=_lifespan)
 @mcp.tool()
 async def search_terms(query: str, ontologies: list[str] | None = None, limit: int = 10):
     """
-    Search for ontology terms by free text across biomedical ontologies.
+    Search for ontology terms by free text across plant and crop ontologies.
 
-    Use when a scientist mentions a biological concept, disease, cell type,
-    chemical, or anatomical structure and you need the canonical ontology ID
-    (CURIE) and definition. Searches GO, MONDO, HPO, ChEBI, UBERON, CL, EFO, and
-    MeSH by default.
+    Use when a researcher mentions a plant concept, trait, growth stage, tissue,
+    stress, environment, or gene/sequence feature and you need the canonical
+    ontology ID (CURIE) and definition. Searches the Plant Ontology (PO), Plant
+    Trait Ontology (TO), PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO, GO, and SO by
+    default.
 
     Args:
-        query: Free-text search, e.g. "cell death", "lung cancer", "HEK293".
-        ontologies: Restrict the search, e.g. ["GO", "MONDO"]. None searches all 8.
+        query: Free-text search, e.g. "plant height", "drought tolerance", "leaf".
+        ontologies: Restrict the search, e.g. ["PO", "TO"]. None searches all 11.
         limit: Max results to return (default 10).
     """
     result, _ = await tools.search_terms(query, ontologies, limit, db_path=DB_PATH, client=_client)
@@ -92,7 +93,7 @@ async def get_term(curie: str):
     label, definition, synonyms, cross-references, and obsolescence status.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "GO:0008219", "MONDO:0005233".
+        curie: Ontology ID with uppercase prefix, e.g. "PO:0025034", "TO:0000207".
     """
     result, _ = await tools.get_term(curie, db_path=DB_PATH, client=_client)
     return result
@@ -107,7 +108,7 @@ async def find_synonyms(curie: str):
     alternative names — exact, related, narrow, and broad synonyms.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "CHEBI:15377".
+        curie: Ontology ID with uppercase prefix, e.g. "TO:0000207".
     """
     result, _ = await tools.find_synonyms(curie, db_path=DB_PATH, client=_client)
     return result
@@ -123,7 +124,7 @@ async def validate_term(curie: str):
     ontology source (never a cache) so the deprecation status is never stale.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "GO:0008219".
+        curie: Ontology ID with uppercase prefix, e.g. "PO:0025034".
     """
     result, _ = await tools.validate_term(curie, client=_client)
     return result
@@ -139,7 +140,7 @@ async def get_parents(curie: str):
     For the full set of broader terms at any distance, use get_ancestors instead.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "CL:0000236".
+        curie: Ontology ID with uppercase prefix, e.g. "PO:0025034".
     """
     result, _ = await tools.get_parents(curie, db_path=DB_PATH, client=_client)
     return result
@@ -155,7 +156,7 @@ async def get_children(curie: str):
     get_descendants instead. Capped at 50 nodes.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "MONDO:0005233".
+        curie: Ontology ID with uppercase prefix, e.g. "TO:0000387".
     """
     result, _ = await tools.get_children(curie, db_path=DB_PATH, client=_client)
     return result
@@ -167,12 +168,12 @@ async def get_ancestors(curie: str):
     Get ALL ancestor (broader) terms of an ontology term, at any distance.
 
     Use to find the general categories above a term — e.g. to learn that a
-    specific cell type is ultimately a kind of leukocyte, or a disease belongs to
-    a broader disease family. Returns the full transitive set of broader terms
-    (not just the immediate parent — use get_parents for the one-hop relation).
+    specific plant structure is ultimately a kind of shoot system, or a trait
+    belongs to a broader trait family. Returns the full transitive set of broader
+    terms (not just the immediate parent — use get_parents for the one-hop relation).
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "CL:0000236".
+        curie: Ontology ID with uppercase prefix, e.g. "PO:0025034".
     """
     result, _ = await tools.get_ancestors(curie, db_path=DB_PATH, client=_client)
     return result
@@ -184,12 +185,12 @@ async def get_descendants(curie: str):
     Get ALL descendant (narrower) terms of an ontology term, at any distance.
 
     Use to enumerate the more specific subtypes below a term — e.g. every kind of
-    a given cell type or every subtype of a disease. Returns the full transitive
+    a given plant structure or every subtype of a trait. Returns the full transitive
     set (use get_children for just the immediate subtypes). Capped at 50 nodes
     because broad terms can have thousands of descendants.
 
     Args:
-        curie: Ontology ID with uppercase prefix, e.g. "MONDO:0005233".
+        curie: Ontology ID with uppercase prefix, e.g. "TO:0000387".
     """
     result, _ = await tools.get_descendants(curie, db_path=DB_PATH, client=_client)
     return result
@@ -201,8 +202,8 @@ def suggest_ontology(context: str):
     Recommend which ontologies fit a research context, with rationale.
 
     Use at the start of an annotation task when the user describes their data or
-    domain but hasn't picked an ontology — e.g. "single-cell RNA-seq of immune
-    cells" or "adverse drug events". Returns ranked ontologies with example
+    domain but hasn't picked an ontology — e.g. "drought-stress field trial in
+    rice" or "flowering-time phenotypes". Returns ranked ontologies with example
     terms. Pure local reasoning — no lookup is performed.
 
     Args:
@@ -217,13 +218,14 @@ async def map_across_ontologies(curie: str, target_ontology: str):
     """
     Find the equivalent term for a CURIE in a different ontology.
 
-    Use to translate a term from one ontology into another — e.g. mapping a MeSH
-    disease to MONDO, or an EFO trait to its GO/HPO counterpart. Prefers exact
-    cross-references; falls back to fuzzy label matching.
+    Use to translate a term from one ontology into another — e.g. mapping a Plant
+    Trait Ontology trait to its Plant Ontology structure, or a FLOPO phenotype to
+    its TO counterpart. Prefers exact cross-references; falls back to fuzzy label
+    matching.
 
     Args:
-        curie: Source ontology ID with uppercase prefix, e.g. "MESH:D008175".
-        target_ontology: Target ontology code, e.g. "MONDO", "HPO", "CHEBI".
+        curie: Source ontology ID with uppercase prefix, e.g. "TO:0000207".
+        target_ontology: Target ontology code, e.g. "PO", "TO", "GO".
     """
     result, _ = await tools.map_across_ontologies(
         curie, target_ontology, db_path=DB_PATH, client=_client
@@ -236,13 +238,13 @@ async def bulk_annotate(terms: list[str], ontology_hint: str | None = None, thre
     """
     Map a list of free-text strings to their best-matching ontology terms.
 
-    Use to annotate a column of labels (e.g. cell-type names, disease strings)
+    Use to annotate a column of labels (e.g. trait names, plant-part strings)
     in one call. Returns a best match plus alternatives for each input. Hard
     limit of 500 inputs; a warning is returned above 100.
 
     Args:
-        terms: The strings to annotate, e.g. ["T cell", "B cell", "macrophage"].
-        ontology_hint: Restrict matching to one ontology code, e.g. "CL". None searches all.
+        terms: The strings to annotate, e.g. ["plant height", "grain yield", "leaf"].
+        ontology_hint: Restrict matching to one ontology code, e.g. "TO". None searches all.
         threshold: Minimum fuzzy-match score (0–1) for a confident best match (default 0.8).
     """
     result, _ = await tools.bulk_annotate(
@@ -262,7 +264,7 @@ async def get_term_graph(curie: str, include_siblings: bool = True):
     nodes; descendants are trimmed first when over the limit.
 
     Args:
-        curie: Focus term's ontology ID with uppercase prefix, e.g. "GO:0008219".
+        curie: Focus term's ontology ID with uppercase prefix, e.g. "PO:0025034".
         include_siblings: Whether to include sibling terms (default True).
     """
     result, _ = await tools.get_term_graph(

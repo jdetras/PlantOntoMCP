@@ -37,9 +37,11 @@ def test_normalize_curie_strips_obo_and_uppercases():
     assert normalize_curie("GO_0008219") == "GO:0008219"
 
 
-def test_normalize_curie_maps_hp_to_hpo():
-    assert normalize_curie("HP:0000001") == "HPO:0000001"
-    assert normalize_curie("hp_0000001") == "HPO:0000001"
+def test_normalize_curie_uppercases_plant_prefix():
+    # Plant/crop prefixes already equal their registry key — no aliasing needed.
+    assert normalize_curie("po:0025034") == "PO:0025034"
+    assert normalize_curie("PO_0025034") == "PO:0025034"
+    assert normalize_curie("to:0000207") == "TO:0000207"
 
 
 def test_normalize_curie_rejects_non_curie():
@@ -55,12 +57,12 @@ def test_normalize_curie_rejects_empty_prefix_or_local_id(bad):
 
 
 def test_curie_to_iri_uses_templates():
-    assert curie_to_iri("GO:0008219") == "http://purl.obolibrary.org/obo/GO_0008219"
-    # HPO maps back to the HP_ template.
-    assert curie_to_iri("HP:0000001") == "http://purl.obolibrary.org/obo/HP_0000001"
-    # EFO and MeSH use special hosts.
-    assert curie_to_iri("EFO:0000001") == "http://www.ebi.ac.uk/efo/EFO_0000001"
-    assert curie_to_iri("MESH:D000001") == "http://id.nlm.nih.gov/mesh/D000001"
+    assert curie_to_iri("PO:0025034") == "http://purl.obolibrary.org/obo/PO_0025034"
+    assert curie_to_iri("TO:0000207") == "http://purl.obolibrary.org/obo/TO_0000207"
+    # Every plant/crop ontology mints standard OBO PURLs.
+    assert curie_to_iri("ENVO:00001998") == "http://purl.obolibrary.org/obo/ENVO_00001998"
+    assert curie_to_iri("GO:0015979") == "http://purl.obolibrary.org/obo/GO_0015979"
+    assert curie_to_iri("SO:0000704") == "http://purl.obolibrary.org/obo/SO_0000704"
 
 
 def test_curie_to_iri_unknown_prefix():
@@ -294,7 +296,7 @@ async def test_fetch_ontology_version_falls_back_to_config():
         return httpx.Response(200, json={"config": {"version": "2026-04-01"}})
 
     async with _client(handler) as c:
-        version = await c.fetch_ontology_version("MONDO")
+        version = await c.fetch_ontology_version("TO")
     assert version == "2026-04-01"
 
 

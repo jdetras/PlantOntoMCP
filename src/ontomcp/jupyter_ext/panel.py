@@ -112,7 +112,7 @@ def search_panel(client=None):
     if client is None:
         client = OntoMCPClient()
 
-    query = widgets.Text(placeholder="e.g. cell death", description="Search:")
+    query = widgets.Text(placeholder="e.g. plant height", description="Search:")
     checks = {
         ont: widgets.Checkbox(value=False, description=ont, indent=False) for ont in ONTOLOGIES
     }

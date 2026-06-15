@@ -9,6 +9,18 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Retargeted the ontology registry from biomedical to plant & crop domains.** The
+  registry now serves the Plant Ontology (PO), Plant Trait Ontology (TO), PECO, PPO,
+  PSO, FLOPO, AGRO, ENVO, and PCO via the EBI OLS4 API, with GO and SO retained for
+  crop genomics. The previous biomedical set (MONDO, HPO, ChEBI, UBERON, CL, EFO,
+  MeSH, NCIT, DOID, PR) has been removed. All 12 tools, both servers, the cache, and
+  the Jupyter extension are unchanged — only the ontology sources differ.
+- `suggest_ontology` keyword rules and example terms retuned for plant/crop research
+  contexts (anatomy, traits, growth stages, stress, agronomy, environment, genomics).
+- Dropped the `HP` → `HPO` CURIE prefix alias; no plant/crop ontology needs aliasing
+  (`_PREFIX_ALIASES` is now an empty extension hook).
+
 ### Added
 - `get_parents` / `get_children` tools and `/term/{curie}/parents` `…/children` routes:
   true one-hop `is_a` edges, the new source of truth for the relationships table and

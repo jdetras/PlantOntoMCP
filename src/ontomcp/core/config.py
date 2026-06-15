@@ -21,55 +21,85 @@ OLS_BACKOFF_BASE = 0.5  # seconds; sleep = base * 2 ** (attempt - 1)
 OLS_RETRY_STATUS = (429, 500, 502, 503, 504)
 
 # --- Ontology registry (v1) ------------------------------------------------
-# Free ontologies served via the EBI OLS4 API. No API key required.
+# Free plant & crop ontologies served via the EBI OLS4 API. No API key required.
 
 # ``slug`` is the lowercase ontology id OLS uses in URL paths and the search
-# filter. It usually equals the lowercased registry key, but not always (HPO ->
-# "hp"), so it is stored explicitly here as the single source of truth.
+# filter. For every ontology below it equals the lowercased registry key, but it
+# is stored explicitly so a future ontology whose slug differs from its CURIE
+# prefix has a single source of truth.
 ONTOLOGIES: dict[str, dict[str, str]] = {
-    "GO": {"name": "Gene Ontology", "domain": "Gene function, biological processes", "slug": "go"},
-    "MONDO": {"name": "Mondo Disease Ontology", "domain": "Disease", "slug": "mondo"},
-    "HPO": {"name": "Human Phenotype Ontology", "domain": "Clinical phenotypes", "slug": "hp"},
-    "CHEBI": {
-        "name": "Chemical Entities of Biological Interest",
-        "domain": "Small molecules, drugs",
-        "slug": "chebi",
+    "PO": {
+        "name": "Plant Ontology",
+        "domain": "Plant anatomy and developmental growth stages",
+        "slug": "po",
     },
-    "UBERON": {
-        "name": "Uberon Anatomy Ontology",
-        "domain": "Cross-species anatomy",
-        "slug": "uberon",
+    "TO": {
+        "name": "Plant Trait Ontology",
+        "domain": "Phenotypic traits of plants (the primary crop-trait vocabulary)",
+        "slug": "to",
     },
-    "CL": {"name": "Cell Ontology", "domain": "Cell types", "slug": "cl"},
-    "EFO": {"name": "Experimental Factor Ontology", "domain": "Experimental design", "slug": "efo"},
-    "MESH": {"name": "Medical Subject Headings", "domain": "Medical literature", "slug": "mesh"},
-    "NCIT": {
-        "name": "NCI Thesaurus",
-        "domain": "Cancer, drugs, indications (pharma/oncology)",
-        "slug": "ncit",
+    "PECO": {
+        "name": "Plant Experimental Conditions Ontology",
+        "domain": "Treatments, growth conditions, and experimental factors",
+        "slug": "peco",
     },
-    "DOID": {
-        "name": "Human Disease Ontology",
-        "domain": "Disease (the primary MONDO mapping target)",
-        "slug": "doid",
+    "PPO": {
+        "name": "Plant Phenology Ontology",
+        "domain": "Phenological (seasonal) growth stages and events",
+        "slug": "ppo",
     },
-    "PR": {"name": "Protein Ontology", "domain": "Proteins, complexes, drug targets", "slug": "pr"},
+    "PSO": {
+        "name": "Plant Stress Ontology",
+        "domain": "Biotic and abiotic plant stresses",
+        "slug": "pso",
+    },
+    "FLOPO": {
+        "name": "Flora Phenotype Ontology",
+        "domain": "Plant phenotypes and traits from botanical floras",
+        "slug": "flopo",
+    },
+    "AGRO": {
+        "name": "Agronomy Ontology",
+        "domain": "Agronomic practices, inputs, and farm management",
+        "slug": "agro",
+    },
+    "ENVO": {
+        "name": "Environment Ontology",
+        "domain": "Environments, biomes, soils, and habitats",
+        "slug": "envo",
+    },
+    "PCO": {
+        "name": "Population and Community Ontology",
+        "domain": "Populations, communities, and their attributes",
+        "slug": "pco",
+    },
+    "GO": {
+        "name": "Gene Ontology",
+        "domain": "Gene function and biological processes (cross-kingdom; crop genomics)",
+        "slug": "go",
+    },
+    "SO": {
+        "name": "Sequence Ontology",
+        "domain": "Genomic sequence features and types (genes, exons, variants)",
+        "slug": "so",
+    },
 }
 
-# Full OBI IRI templates per ontology. CURIE id fills the {id} slot, then the
-# result is double-URL-encoded when used as an OLS path parameter.
+# Full OBO IRI templates per ontology. CURIE id fills the {id} slot, then the
+# result is double-URL-encoded when used as an OLS path parameter. Every plant
+# ontology here mints standard OBO PURLs, so the prefix maps 1:1 to the template.
 IRI_TEMPLATES: dict[str, str] = {
+    "PO": "http://purl.obolibrary.org/obo/PO_{id}",
+    "TO": "http://purl.obolibrary.org/obo/TO_{id}",
+    "PECO": "http://purl.obolibrary.org/obo/PECO_{id}",
+    "PPO": "http://purl.obolibrary.org/obo/PPO_{id}",
+    "PSO": "http://purl.obolibrary.org/obo/PSO_{id}",
+    "FLOPO": "http://purl.obolibrary.org/obo/FLOPO_{id}",
+    "AGRO": "http://purl.obolibrary.org/obo/AGRO_{id}",
+    "ENVO": "http://purl.obolibrary.org/obo/ENVO_{id}",
+    "PCO": "http://purl.obolibrary.org/obo/PCO_{id}",
     "GO": "http://purl.obolibrary.org/obo/GO_{id}",
-    "MONDO": "http://purl.obolibrary.org/obo/MONDO_{id}",
-    "HPO": "http://purl.obolibrary.org/obo/HP_{id}",
-    "CHEBI": "http://purl.obolibrary.org/obo/CHEBI_{id}",
-    "UBERON": "http://purl.obolibrary.org/obo/UBERON_{id}",
-    "CL": "http://purl.obolibrary.org/obo/CL_{id}",
-    "EFO": "http://www.ebi.ac.uk/efo/EFO_{id}",
-    "MESH": "http://id.nlm.nih.gov/mesh/{id}",
-    "NCIT": "http://purl.obolibrary.org/obo/NCIT_{id}",
-    "DOID": "http://purl.obolibrary.org/obo/DOID_{id}",
-    "PR": "http://purl.obolibrary.org/obo/PR_{id}",
+    "SO": "http://purl.obolibrary.org/obo/SO_{id}",
 }
 
 # --- Cache -----------------------------------------------------------------

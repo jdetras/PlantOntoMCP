@@ -123,7 +123,7 @@ async def test_suggest_ontology_is_offline(mcp_client):
 
     async with mcp_client(handler) as client:
         result = await client.call_tool(
-            "suggest_ontology", {"context": "single-cell RNA-seq of immune cells"}
+            "suggest_ontology", {"context": "leaf and root anatomy of rice"}
         )
     codes = {entry["ontology"] for entry in _tool_payload(result)}
-    assert "CL" in codes
+    assert "PO" in codes

@@ -1,10 +1,10 @@
 # OntoMCP
 
-**Ontology grounding for pharma and biotech scientists.**
+**Ontology grounding for plant and crop scientists.**
 
 OntoMCP is a client-agnostic MCP server and Jupyter extension for notebooks. It resolves
-biological concepts to canonical ontology terms — cell death becomes `GO:0008219`, lung
-adenocarcinoma becomes `MONDO:0005061` — with no hallucinated IDs and no API key required.
+plant and crop concepts to canonical ontology terms — leaf becomes `PO:0025034`, plant
+height becomes `TO:0000207` — with no hallucinated IDs and no API key required.
 It works with any MCP-compatible client: Claude (Desktop / Code), GPT, Codex CLI, Cursor,
 and others.
 
@@ -18,8 +18,8 @@ and others.
 
 - **12 tools** — search, fetch, validate, map, annotate, and graph ontology terms
   (including direct `get_parents` / `get_children` alongside transitive `get_ancestors` / `get_descendants`)
-- **11 ontologies** — GO, MONDO, HPO, ChEBI, UBERON, CL, EFO, MeSH, plus NCIT, DOID, PR
-  (pharma/oncology) via the EBI OLS4 API
+- **11 ontologies** — PO, TO, PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO (plant/crop), plus
+  GO and SO (crop genomics) via the EBI OLS4 API
 - **SQLite cache** — fast offline lookups, 7-day TTL, FTS5 full-text search
 - **Client-agnostic MCP** — all 12 tools work in Claude (stdio) and GPT / Codex CLI / Cursor (SSE)
 - **Jupyter extension** — search panel, interactive term graph, `%%ontomcp` cell magic
@@ -91,8 +91,8 @@ uv sync --extra jupyter
 
 3. Restart Claude Desktop. All 12 tools appear automatically.
 
-**Try it:** Ask Claude — *"What is the ontology term for cell death?"* — and it will
-return `GO:0008219` with definition, synonyms, and an ancestor graph.
+**Try it:** Ask Claude — *"What is the ontology term for plant height?"* — and it will
+return `TO:0000207` with definition, synonyms, and an ancestor graph.
 
 ---
 
@@ -136,10 +136,10 @@ OpenAPI docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 # Search
 curl -X POST localhost:8000/search \
   -H "Content-Type: application/json" \
-  -d '{"query": "cell death", "ontologies": ["GO"]}'
+  -d '{"query": "plant height", "ontologies": ["TO"]}'
 
 # Fetch a term
-curl localhost:8000/term/GO:0008219
+curl localhost:8000/term/PO:0025034
 
 # Health check
 curl localhost:8000/health
@@ -175,8 +175,8 @@ Click any node for its term card. Double-click to re-centre the graph on it.
 %load_ext ontomcp.jupyter_ext.magic
 ```
 ```python
-%%ontomcp annotate --df cells --col cell_type --ontology CL
-# adds cell_type_curie, cell_type_label, cell_type_score columns
+%%ontomcp annotate --df plots --col trait --ontology TO
+# adds trait_curie, trait_label, trait_score columns
 ```
 
 ---
@@ -203,19 +203,19 @@ ontomcp-mcp --db-path /data/ontomcp.db
 
 ## Ontology Reference
 
-| ID     | Name                              | Domain                   | Key use case                   |
-|--------|-----------------------------------|--------------------------|--------------------------------|
-| GO     | Gene Ontology                     | Gene function, processes | Omics, pathway analysis        |
-| MONDO  | Mondo Disease Ontology            | Disease                  | Unified disease naming         |
-| HPO    | Human Phenotype Ontology          | Clinical phenotypes      | Rare disease, genetics         |
-| CHEBI  | Chemical Entities of Biological Interest | Small molecules   | Chemistry, pharmacology        |
-| UBERON | Uberon Anatomy Ontology           | Cross-species anatomy    | Tissue, organ annotation       |
-| CL     | Cell Ontology                     | Cell types               | Single-cell, immunology        |
-| EFO    | Experimental Factor Ontology      | Experimental design      | GWAS, Open Targets             |
-| MESH   | Medical Subject Headings          | Medical literature       | PubMed search, MeSH terms      |
-| NCIT   | NCI Thesaurus                     | Cancer, drugs, indications | Pharma / oncology            |
-| DOID   | Human Disease Ontology            | Disease                  | MONDO mapping target           |
-| PR     | Protein Ontology                  | Proteins, complexes      | Drug targets                   |
+| ID     | Name                                   | Domain                          | Key use case                      |
+|--------|----------------------------------------|---------------------------------|-----------------------------------|
+| PO     | Plant Ontology                         | Plant anatomy & growth stages   | Tissue / organ / stage annotation |
+| TO     | Plant Trait Ontology                   | Phenotypic plant traits         | Crop trait curation, breeding     |
+| PECO   | Plant Experimental Conditions Ontology | Treatments & growth conditions  | Experiment & treatment metadata   |
+| PPO    | Plant Phenology Ontology               | Phenological growth stages      | Phenology, flowering time         |
+| PSO    | Plant Stress Ontology                  | Biotic & abiotic stress         | Stress / tolerance studies        |
+| FLOPO  | Flora Phenotype Ontology               | Plant phenotypes from floras    | Botanical phenotype annotation    |
+| AGRO   | Agronomy Ontology                      | Agronomic practices & inputs    | Farm management, agronomy         |
+| ENVO   | Environment Ontology                   | Environments, biomes, soils     | Site / soil / climate annotation  |
+| PCO    | Population and Community Ontology       | Populations & communities       | Germplasm, accessions, diversity  |
+| GO     | Gene Ontology                          | Gene function & processes       | Crop genomics, pathway analysis   |
+| SO     | Sequence Ontology                      | Genomic sequence features       | Variants, markers, gene models    |
 
 All ontologies are free and served by the [EBI OLS4 API](https://www.ebi.ac.uk/ols4).
 No API key required.

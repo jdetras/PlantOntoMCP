@@ -67,7 +67,7 @@ class OntoMCPClient:
 
     @staticmethod
     def _curie_path(curie):
-        """Encode a CURIE for use as a path segment (``GO:0008219`` -> ``GO%3A0008219``)."""
+        """Encode a CURIE for use as a path segment (``PO:0025034`` -> ``PO%3A0025034``)."""
         return quote(curie, safe="")
 
     # --- endpoints ---------------------------------------------------------

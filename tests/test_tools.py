@@ -364,23 +364,23 @@ async def test_get_descendants_caps_at_50_and_writes_no_edges(db):
 
 
 def test_suggest_ontology_matches_keywords():
-    out, cached = suggest_ontology("looking at single cell RNA data")
+    out, cached = suggest_ontology("measuring leaf and root anatomy")
     codes = [e["ontology"] for e in out]
-    assert codes[0] == "CL"
+    assert codes[0] == "PO"
     assert all("ols_url" in e for e in out)
     assert cached is False  # pure logic, no cache
 
 
 def test_suggest_ontology_default_when_no_match():
     out, _ = suggest_ontology("completely unrelated text")
-    assert [e["ontology"] for e in out] == ["GO", "MONDO"]
+    assert [e["ontology"] for e in out] == ["PO", "TO"]
 
 
-def test_suggest_ontology_recommends_pharma_ontologies():
-    out, _ = suggest_ontology("oncology drug target safety profiling")
+def test_suggest_ontology_recommends_stress_ontologies():
+    out, _ = suggest_ontology("drought stress field trial")
     codes = [e["ontology"] for e in out]
-    assert "NCIT" in codes  # cancer/drug context
-    assert "PR" in codes  # target/protein context
+    assert "PSO" in codes  # stress context
+    assert "PECO" in codes  # experimental-condition context
 
 
 def test_suggest_ontology_examples_cover_full_registry():
@@ -396,13 +396,13 @@ def test_suggest_ontology_examples_cover_full_registry():
 
 async def test_map_exact_xref(db):
     def handler(request):
-        doc = _term_doc(obo_id="MONDO:0004992", label="cancer")
-        doc["obo_xref"] = [{"database": "MESH", "id": "D009369"}]
+        doc = _term_doc(obo_id="TO:0000207", label="plant height")
+        doc["obo_xref"] = [{"database": "PO", "id": "0025034"}]
         return _terms_response([doc])
 
     async with _client(handler) as cli:
-        out, _ = await map_across_ontologies("MONDO:0004992", "MESH", db_path=db, client=cli)
-    assert out[0]["curie"] == "MESH:D009369"
+        out, _ = await map_across_ontologies("TO:0000207", "PO", db_path=db, client=cli)
+    assert out[0]["curie"] == "PO:0025034"
     assert out[0]["match_type"] == "exact_xref"
     assert out[0]["mapping_predicate"] == "skos:exactMatch"
     assert out[0]["confidence"] == 1.0
@@ -411,38 +411,38 @@ async def test_map_exact_xref(db):
 async def test_map_xref_id_already_prefixed(db):
     # OLS sometimes returns the xref id already prefixed; must not double-prefix.
     def handler(request):
-        doc = _term_doc(obo_id="MONDO:0004992", label="cancer")
-        doc["obo_xref"] = [{"database": "MESH", "id": "MESH:D009369"}]
+        doc = _term_doc(obo_id="TO:0000207", label="plant height")
+        doc["obo_xref"] = [{"database": "PO", "id": "PO:0025034"}]
         return _terms_response([doc])
 
     async with _client(handler) as cli:
-        out, _ = await map_across_ontologies("MONDO:0004992", "MESH", db_path=db, client=cli)
-    assert out[0]["curie"] == "MESH:D009369"
+        out, _ = await map_across_ontologies("TO:0000207", "PO", db_path=db, client=cli)
+    assert out[0]["curie"] == "PO:0025034"
     assert out[0]["match_type"] == "exact_xref"
 
 
 async def test_map_xref_deduped_across_forms(db):
     # Same xref listed in both structured and flat forms yields a single result.
     def handler(request):
-        doc = _term_doc(obo_id="MONDO:0004992", label="cancer")
-        doc["obo_xref"] = [{"database": "MESH", "id": "D009369"}]
-        doc["oboXref"] = ["MESH:D009369"]
+        doc = _term_doc(obo_id="TO:0000207", label="plant height")
+        doc["obo_xref"] = [{"database": "PO", "id": "0025034"}]
+        doc["oboXref"] = ["PO:0025034"]
         return _terms_response([doc])
 
     async with _client(handler) as cli:
-        out, _ = await map_across_ontologies("MONDO:0004992", "MESH", db_path=db, client=cli)
-    assert [r["curie"] for r in out] == ["MESH:D009369"]
+        out, _ = await map_across_ontologies("TO:0000207", "PO", db_path=db, client=cli)
+    assert [r["curie"] for r in out] == ["PO:0025034"]
 
 
 async def test_map_label_match_fallback(db):
     def handler(request):
         if "/search" in str(request.url):
-            return _search_response([_term_doc(obo_id="MESH:D003643", label="cell death")])
-        return _terms_response([_term_doc(obo_id="GO:0008219", label="cell death")])
+            return _search_response([_term_doc(obo_id="PO:0025034", label="photosynthesis")])
+        return _terms_response([_term_doc(obo_id="GO:0015979", label="photosynthesis")])
 
     async with _client(handler) as cli:
-        out, _ = await map_across_ontologies("GO:0008219", "MESH", db_path=db, client=cli)
-    assert out[0]["curie"] == "MESH:D003643"
+        out, _ = await map_across_ontologies("GO:0015979", "PO", db_path=db, client=cli)
+    assert out[0]["curie"] == "PO:0025034"
     assert out[0]["match_type"] == "label_match"
     assert out[0]["mapping_predicate"] == "heuristic_label"
     # A heuristic match must never reach or tie a curated xref (confidence 1.0).
@@ -455,11 +455,11 @@ async def test_map_label_match_confidence_below_xref(db):
     # xref's 1.0 — string similarity is reported as a candidate, not equivalence.
     def handler(request):
         if "/search" in str(request.url):
-            return _search_response([_term_doc(obo_id="MONDO:0000001", label="lung cancers")])
-        return _terms_response([_term_doc(obo_id="GO:0000001", label="lung cancer")])
+            return _search_response([_term_doc(obo_id="PO:0000001", label="plant heights")])
+        return _terms_response([_term_doc(obo_id="TO:0000207", label="plant height")])
 
     async with _client(handler) as cli:
-        out, _ = await map_across_ontologies("GO:0000001", "MONDO", db_path=db, client=cli)
+        out, _ = await map_across_ontologies("TO:0000207", "PO", db_path=db, client=cli)
     assert out  # cleared the 0.85 threshold
     assert out[0]["match_type"] == "label_match"
     assert 0.0 < out[0]["confidence"] < 0.7  # below a perfect/corroborated match
@@ -467,14 +467,14 @@ async def test_map_label_match_confidence_below_xref(db):
 
 async def test_map_unknown_target(db):
     async with _client(lambda r: httpx.Response(200)) as cli:
-        out, _ = await map_across_ontologies("GO:0008219", "BOGUS", db_path=db, client=cli)
+        out, _ = await map_across_ontologies("PO:0025034", "BOGUS", db_path=db, client=cli)
     assert out[0]["error"] == "unknown_ontology"
 
 
 async def test_map_propagates_source_not_found(db):
     """When the source term itself is missing, return its error rather than mapping."""
     async with _client(lambda r: httpx.Response(404)) as cli:
-        out, cached = await map_across_ontologies("GO:9999999", "MONDO", db_path=db, client=cli)
+        out, cached = await map_across_ontologies("TO:9999999", "PO", db_path=db, client=cli)
     assert out[0]["error"] == "not_found"
     assert cached is False
 
@@ -485,12 +485,12 @@ async def test_map_propagates_source_not_found(db):
 async def test_bulk_annotate_matches(db):
     def handler(request):
         q = request.url.params.get("q", "")
-        return _search_response([_term_doc(obo_id="CL:0000236", label=q)])
+        return _search_response([_term_doc(obo_id="PO:0025034", label=q)])
 
     async with _client(handler) as cli:
-        out, _ = await bulk_annotate(["B cell", "T cell"], db_path=db, client=cli)
+        out, _ = await bulk_annotate(["leaf", "root"], db_path=db, client=cli)
     assert len(out["results"]) == 2
-    assert out["results"][0]["best_match"]["curie"] == "CL:0000236"
+    assert out["results"][0]["best_match"]["curie"] == "PO:0025034"
 
 
 async def test_bulk_annotate_dedupes_inputs(db):
@@ -499,15 +499,15 @@ async def test_bulk_annotate_dedupes_inputs(db):
     def handler(request):
         q = request.url.params.get("q", "")
         queries.append(q)
-        return _search_response([_term_doc(obo_id="CL:0000236", label=q)])
+        return _search_response([_term_doc(obo_id="PO:0025034", label=q)])
 
     async with _client(handler) as cli:
-        out, _ = await bulk_annotate(["T cell", "T cell", "B cell"], db_path=db, client=cli)
+        out, _ = await bulk_annotate(["root", "root", "leaf"], db_path=db, client=cli)
 
     # One result row per input, preserving order and duplicates.
-    assert [r["input"] for r in out["results"]] == ["T cell", "T cell", "B cell"]
-    # Distinct terms searched once each — "T cell" not queried twice.
-    assert sorted(queries) == ["B cell", "T cell"]
+    assert [r["input"] for r in out["results"]] == ["root", "root", "leaf"]
+    # Distinct terms searched once each — "root" not queried twice.
+    assert sorted(queries) == ["leaf", "root"]
 
 
 async def test_bulk_annotate_hard_error_over_max(db):
@@ -576,11 +576,11 @@ async def test_get_term_graph_caps_nodes(db):
 
 @pytest.mark.integration
 async def test_search_terms_live(db):
-    results, _ = await search_terms("cell death", ontologies=["GO"], db_path=db)
-    assert any(r["curie"] == "GO:0008219" for r in results)
+    results, _ = await search_terms("leaf", ontologies=["PO"], db_path=db)
+    assert any(r["curie"] == "PO:0025034" for r in results)
 
 
 @pytest.mark.integration
 async def test_get_term_live(db):
-    term, _ = await get_term("GO:0008219", db_path=db)
-    assert term["label"].lower() == "cell death"
+    term, _ = await get_term("PO:0025034", db_path=db)
+    assert term["label"].lower() == "leaf"
