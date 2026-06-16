@@ -133,6 +133,32 @@ async def test_search_skips_agroportal_when_only_ols_requested():
     assert [r["curie"] for r in results] == ["PO:0025034"]
 
 
+async def test_unfiltered_search_scopes_ols_to_registry():
+    # ontologies=None must scope the OLS leg to the registry's OLS ontologies,
+    # never query all of OLS4 unfiltered (which would return out-of-registry terms).
+    seen = {}
+
+    def ols_handler(r):
+        seen["ontology"] = r.url.params.get("ontology")
+        return httpx.Response(
+            200, json={"response": {"docs": [{"obo_id": "PO:0025034", "label": "leaf"}]}}
+        )
+
+    def agro_handler(r):
+        return httpx.Response(200, json={"collection": []})
+
+    fed = FederatedClient(ols=_ols(ols_handler), agroportal=_agro(agro_handler))
+    async with fed:
+        await fed.search("leaf", None, limit=10)
+
+    assert seen["ontology"] is not None, "OLS search must carry an ontology filter"
+    sent = set(seen["ontology"].split(","))
+    expected = {config.ONTOLOGIES[k]["slug"] for k in config.OLS_ONTOLOGIES}
+    assert sent == expected
+    # No Crop Ontology slug leaks into the OLS filter.
+    assert all(not s.startswith("co_") for s in sent)
+
+
 async def test_search_without_key_uses_ols_only():
     def ols_handler(r):
         return httpx.Response(

@@ -44,6 +44,21 @@ def test_normalize_curie_uppercases_plant_prefix():
     assert normalize_curie("to:0000207") == "TO:0000207"
 
 
+def test_normalize_curie_underscore_form_with_underscore_in_prefix():
+    # Crop Ontology prefixes themselves contain '_' (e.g. CO_320). An underscore
+    # short form must split on the registry boundary, not the first '_', so it
+    # does not corrupt to prefix 'CO'.
+    assert normalize_curie("CO_320_0000625") == "CO_320:0000625"
+    assert normalize_curie("CO_320:0000625") == "CO_320:0000625"
+
+
+def test_normalize_curie_rejects_bare_ontology_acronym():
+    # A bare acronym (registry prefix with no local id) is not a CURIE — it must
+    # raise rather than fabricate something like 'CO:320'.
+    with pytest.raises(ValueError):
+        normalize_curie("CO_320")
+
+
 def test_normalize_curie_rejects_non_curie():
     with pytest.raises(ValueError):
         normalize_curie("plainstring")

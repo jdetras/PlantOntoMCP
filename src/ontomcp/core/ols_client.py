@@ -30,6 +30,12 @@ _PREFIX_ALIASES: dict[str, str] = {}
 # Driven by the registry's ``slug`` field so the mapping has one source of truth.
 _ONTOLOGY_SLUGS = {key: meta["slug"] for key, meta in config.ONTOLOGIES.items()}
 
+# Registry CURIE prefixes, longest first. Used to split underscore short forms
+# (e.g. ``GO_0008219``) whose prefix may itself contain ``_`` (Crop Ontology,
+# e.g. ``CO_320``), so the split lands on the registry boundary, not the first
+# ``_``. Longest-first lets ``CO_320`` win over a hypothetical ``CO``.
+_PREFIXES_BY_LEN = sorted((p.upper() for p in config.ONTOLOGIES), key=len, reverse=True)
+
 # OLS obo_synonym scope -> our synonym bucket.
 _SYNONYM_SCOPES = {
     "hasExactSynonym": "exact",
@@ -43,18 +49,34 @@ _SYNONYM_SCOPES = {
 
 
 def normalize_curie(raw: str) -> str:
-    """Return a canonical CURIE: uppercase prefix, ``obo:`` stripped, ``HP`` -> ``HPO``.
+    """Return a canonical CURIE: uppercase prefix, ``obo:`` stripped.
 
     ``"obo:go_0008219"`` and ``"GO:0008219"`` both yield ``"GO:0008219"``. OLS
-    sometimes returns short forms with ``_`` instead of ``:`` (e.g. ``GO_0008219``).
+    sometimes returns short forms with ``_`` instead of ``:`` (e.g. ``GO_0008219``);
+    these are split on the registry prefix boundary so a prefix that itself
+    contains ``_`` (e.g. ``CO_320``) parses correctly.
     """
     text = raw.strip()
     if text.lower().startswith("obo:"):
         text = text[4:]
-    sep = ":" if ":" in text else ("_" if "_" in text else None)
-    if sep is None:
+    if ":" in text:
+        prefix, local_id = text.split(":", 1)
+    elif "_" in text:
+        # Underscore short form. A registry prefix may itself contain ``_``
+        # (Crop Ontology, e.g. ``CO_320``), so split on the registry boundary
+        # rather than the first ``_``; otherwise ``CO_320_0000625`` would parse
+        # as prefix ``CO``. A bare acronym (no local id) is not a CURIE.
+        upper = text.upper()
+        for cand in _PREFIXES_BY_LEN:
+            if upper == cand:
+                raise ValueError(f"Not a CURIE: {raw!r}")
+            if upper.startswith(cand + "_"):
+                prefix, local_id = text[: len(cand)], text[len(cand) + 1 :]
+                break
+        else:
+            prefix, local_id = text.split("_", 1)
+    else:
         raise ValueError(f"Not a CURIE: {raw!r}")
-    prefix, local_id = text.split(sep, 1)
     if not prefix or not local_id:
         # Reject malformed CURIEs like ":", "GO:", ":0008219" — both a prefix and
         # a local id are required.
@@ -275,6 +297,11 @@ class OLSClient:
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+    @property
+    def has_key(self) -> bool:
+        """OLS needs no API key — always reachable."""
+        return True
 
     async def _get(self, path: str, params: dict | None = None) -> httpx.Response:
         """GET with retry/backoff on 429 + 5xx and transport/timeout errors.
