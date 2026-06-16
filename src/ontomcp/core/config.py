@@ -7,7 +7,14 @@ Later phases import these constants — they must never be redefined elsewhere
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from ontomcp import __version__
+
+# Load a local .env (e.g. AGROPORTAL_API_KEY) before reading any env var below.
+# Real environment variables take precedence (override=False), so an explicit
+# `env` block in an MCP/host config still wins over the file.
+load_dotenv()
 
 # --- OLS API ---------------------------------------------------------------
 
