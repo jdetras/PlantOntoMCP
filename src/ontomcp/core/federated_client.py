@@ -15,6 +15,8 @@ API key is configured, CO is simply skipped in search and CO CURIE lookups retur
 the AgroPortal client's structured ``no_api_key`` error; the OLS path is untouched.
 """
 
+import asyncio
+
 from ontomcp.core import config
 from ontomcp.core.agroportal_client import AgroPortalClient
 from ontomcp.core.config import rank_score
@@ -50,6 +52,11 @@ class FederatedClient:
             await self._ols.aclose()
         if self._owns_agro:
             await self._agro.aclose()
+
+    @property
+    def has_key(self) -> bool:
+        """The federated backend can always reach OLS, so it is always usable."""
+        return True
 
     # --- routing ----------------------------------------------------------
 
@@ -99,7 +106,9 @@ class FederatedClient:
         backend errors, the first error list is returned.
         """
         if ontologies is None:
-            ols_arg: list[str] | None = None
+            # Scope the OLS leg to the registry's OLS ontologies — passing None
+            # would let OLS search all of OLS4 and return out-of-registry terms.
+            ols_arg: list[str] | None = list(config.OLS_ONTOLOGIES)
             call_ols = True
             agro_arg = list(config.CROP_ONTOLOGIES)
             call_agro = self._agro.has_key
@@ -109,15 +118,18 @@ class FederatedClient:
             ols_arg, call_ols = ols_list, bool(ols_list)
             agro_arg, call_agro = agro_list, bool(agro_list) and self._agro.has_key
 
+        # The two backends are independent network calls — query them concurrently.
+        tasks = []
+        if call_ols:
+            tasks.append(self._ols.search(query, ols_arg, limit))
+        if call_agro:
+            tasks.append(self._agro.search(query, agro_arg, limit))
+
         merged: list[dict] = []
         errors: list[dict] = []
-        if call_ols:
-            res = await self._ols.search(query, ols_arg, limit)
-            (errors.extend(res) if _is_error_list(res) else merged.extend(res))
-        if call_agro:
-            res = await self._agro.search(query, agro_arg, limit)
-            # A CO-backend error must not sink an otherwise-good OLS search; only
-            # surface AgroPortal errors when nothing else produced results.
+        # A CO-backend error must not sink an otherwise-good OLS search; errors are
+        # only surfaced below when nothing else produced results.
+        for res in await asyncio.gather(*tasks):
             (errors.extend(res) if _is_error_list(res) else merged.extend(res))
 
         if not merged:

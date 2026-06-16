@@ -29,4 +29,13 @@ class OntologyClient(Protocol):
 
     async def fetch_ontology_version(self, ontology: str) -> str | None: ...
 
+    @property
+    def has_key(self) -> bool:
+        """True when the backend can make network calls (no missing credential).
+
+        Backends that never require a key (OLS) report True unconditionally; the
+        federated client uses this to decide whether to query a backend at all.
+        """
+        ...
+
     async def aclose(self) -> None: ...

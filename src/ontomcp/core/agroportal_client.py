@@ -235,11 +235,13 @@ class AgroPortalClient:
                 return {"error": "not_found", "curie": normalized}
             response.raise_for_status()
             obj = response.json()
+            if not obj or obj.get("errors"):
+                return {"error": "not_found", "curie": normalized}
+            # Parse inside the try: _parse_class raises ValueError on an
+            # unparseable @id, and public methods must never raise.
+            return _parse_class(obj)
         except (httpx.HTTPError, ValueError) as exc:
             return {"error": "fetch_failed", "detail": str(exc), "curie": normalized}
-        if not obj or obj.get("errors"):
-            return {"error": "not_found", "curie": normalized}
-        return _parse_class(obj)
 
     async def fetch_ontology_version(self, ontology: str) -> str | None:
         """Return the latest submission version/release for a CO ontology, or None.

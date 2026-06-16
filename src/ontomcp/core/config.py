@@ -187,6 +187,12 @@ def ontology_source(prefix: str) -> str:
     return meta.get("source", "ols") if meta else "ols"
 
 
+# Registry keys served by each backend. Derived from ONTOLOGIES so the partition
+# has one source of truth. Used by the federated client to scope an unfiltered
+# search to the registry instead of all of OLS4.
+OLS_ONTOLOGIES: list[str] = [k for k in ONTOLOGIES if ontology_source(k) == "ols"]
+
+
 # --- Cache -----------------------------------------------------------------
 
 # Override with ONTOMCP_DB_PATH; defaults to a file in the user's home dir.
