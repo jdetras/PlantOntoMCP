@@ -19,7 +19,8 @@ from pathlib import Path
 from rapidfuzz import fuzz
 
 from ontomcp.core.config import DB_PATH, ONTOLOGIES
-from ontomcp.core.ols_client import OLSClient, normalize_curie
+from ontomcp.core.ols_client import normalize_curie
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, ols_client
 from ontomcp.core.tools.search import search_terms
 from ontomcp.core.tools.term import get_term
@@ -100,7 +101,7 @@ async def map_across_ontologies(
     target_ontology: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Map a term to its equivalent(s) in ``target_ontology``.
 

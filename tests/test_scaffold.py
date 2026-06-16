@@ -11,9 +11,9 @@ def test_version():
     assert ontomcp.__version__ == "0.1.0"
 
 
-def test_registry_includes_core_and_pharma_ontologies():
-    # The original free set plus the pharma/oncology additions (NCIT, DOID, PR).
-    expected = {"GO", "MONDO", "HPO", "CHEBI", "UBERON", "CL", "EFO", "MESH", "NCIT", "DOID", "PR"}
+def test_registry_includes_plant_and_crop_ontologies():
+    # The plant/crop set served via EBI OLS4, plus GO and SO for crop genomics.
+    expected = {"PO", "TO", "PECO", "PPO", "PSO", "FLOPO", "AGRO", "ENVO", "PCO", "GO", "SO"}
     assert expected <= set(config.ONTOLOGIES)
 
 

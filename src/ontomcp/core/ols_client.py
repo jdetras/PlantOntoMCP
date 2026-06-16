@@ -7,12 +7,12 @@ Public methods never raise: on failure they return a structured ``{"error": ...}
 dict (or list of those) so tools never see an unhandled exception.
 
 CURIE rules (see project CLAUDE.md):
-- Store/return uppercase prefix, e.g. ``GO:0008219``.
+- Store/return uppercase prefix, e.g. ``PO:0025034``.
 - Strip a leading ``obo:`` if OLS returns it.
-- The config registry uses the key ``HPO`` while OLS CURIEs/IRIs use ``HP``
-  (``HP:0000001`` / ``HP_0000001``). We map ``HP`` -> ``HPO`` at the CURIE prefix
-  layer so the registry key resolves; the IRI template for ``HPO`` already yields
-  ``HP_{id}``.
+- Every plant/crop ontology in the registry uses a CURIE prefix that already
+  equals its uppercased registry key (``PO``, ``TO``, ``GO`` ...), so no prefix
+  aliasing is required. ``_PREFIX_ALIASES`` is kept (empty) as the hook for any
+  future ontology whose OLS prefix differs from its registry key.
 """
 
 import asyncio
@@ -22,8 +22,9 @@ import httpx
 
 from ontomcp.core import config
 
-# OLS CURIE prefix -> registry key. Only HP differs from its registry key.
-_PREFIX_ALIASES = {"HP": "HPO"}
+# OLS CURIE prefix -> registry key, for ontologies whose OLS prefix differs from
+# their registry key. None of the current plant/crop ontologies need remapping.
+_PREFIX_ALIASES: dict[str, str] = {}
 
 # registry key -> lowercase ontology id used in OLS URL paths / search filter.
 # Driven by the registry's ``slug`` field so the mapping has one source of truth.

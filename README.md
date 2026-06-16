@@ -1,14 +1,16 @@
-# OntoMCP
+# PlantOntoMCP
 
-**Ontology grounding for pharma and biotech scientists.**
+**Ontology grounding for plant and crop scientists.**
 
-OntoMCP is a client-agnostic MCP server and Jupyter extension for notebooks. It resolves
-biological concepts to canonical ontology terms — cell death becomes `GO:0008219`, lung
-adenocarcinoma becomes `MONDO:0005061` — with no hallucinated IDs and no API key required.
-It works with any MCP-compatible client: Claude (Desktop / Code), GPT, Codex CLI, Cursor,
-and others.
+PlantOntoMCP is a client-agnostic MCP server and Jupyter extension for notebooks. It resolves
+plant and crop concepts to canonical ontology terms — leaf becomes `PO:0025034`, plant
+height becomes `TO:0000207` — with no hallucinated IDs and no API key required for the core
+ontologies. It works with any MCP-compatible client: Claude (Desktop / Code), GPT, Codex CLI,
+Cursor, and others.
 
-[![CI](https://github.com/jeanlouishoneine-tech/OntoMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/jeanlouishoneine-tech/OntoMCP/actions/workflows/ci.yml)
+> A plant/crop adaptation of [OntoMCP](https://github.com/jeanlouishoneine-tech/OntoMCP) by
+> Jean-Louis Honeine, which targets biomedical ontologies. See [Acknowledgements](#acknowledgements).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
@@ -18,8 +20,10 @@ and others.
 
 - **12 tools** — search, fetch, validate, map, annotate, and graph ontology terms
   (including direct `get_parents` / `get_children` alongside transitive `get_ancestors` / `get_descendants`)
-- **11 ontologies** — GO, MONDO, HPO, ChEBI, UBERON, CL, EFO, MeSH, plus NCIT, DOID, PR
-  (pharma/oncology) via the EBI OLS4 API
+- **11 OLS4 ontologies** — PO, TO, PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO (plant/crop),
+  plus GO and SO (crop genomics) via the EBI OLS4 API
+- **42 Crop Ontology dictionaries** — Rice (CO_320), Wheat (CO_321), Maize (CO_322), Cassava,
+  Banana, Common Bean, … served via AgroPortal (optional — needs a free API key)
 - **SQLite cache** — fast offline lookups, 7-day TTL, FTS5 full-text search
 - **Client-agnostic MCP** — all 12 tools work in Claude (stdio) and GPT / Codex CLI / Cursor (SSE)
 - **Jupyter extension** — search panel, interactive term graph, `%%ontomcp` cell magic
@@ -33,8 +37,8 @@ and others.
 # Install uv via Homebrew (recommended on macOS)
 brew install uv
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 make install
 ```
 
@@ -42,8 +46,8 @@ make install
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 make install
 ```
 
@@ -52,8 +56,8 @@ make install
 # Install uv via winget
 winget install astral-sh.uv
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 uv sync --extra dev   # make is not available by default on Windows
 ```
 
@@ -83,7 +87,7 @@ uv sync --extra jupyter
      "mcpServers": {
        "ontomcp": {
          "command": "uv",
-         "args": ["run", "--directory", "/path/to/OntoMCP", "ontomcp-mcp"]
+         "args": ["run", "--directory", "/path/to/PlantOntoMCP", "ontomcp-mcp"]
        }
      }
    }
@@ -91,8 +95,8 @@ uv sync --extra jupyter
 
 3. Restart Claude Desktop. All 12 tools appear automatically.
 
-**Try it:** Ask Claude — *"What is the ontology term for cell death?"* — and it will
-return `GO:0008219` with definition, synonyms, and an ancestor graph.
+**Try it:** Ask Claude — *"What is the ontology term for plant height?"* — and it will
+return `TO:0000207` with definition, synonyms, and an ancestor graph.
 
 ---
 
@@ -136,10 +140,10 @@ OpenAPI docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 # Search
 curl -X POST localhost:8000/search \
   -H "Content-Type: application/json" \
-  -d '{"query": "cell death", "ontologies": ["GO"]}'
+  -d '{"query": "plant height", "ontologies": ["TO"]}'
 
 # Fetch a term
-curl localhost:8000/term/GO:0008219
+curl localhost:8000/term/PO:0025034
 
 # Health check
 curl localhost:8000/health
@@ -175,8 +179,8 @@ Click any node for its term card. Double-click to re-centre the graph on it.
 %load_ext ontomcp.jupyter_ext.magic
 ```
 ```python
-%%ontomcp annotate --df cells --col cell_type --ontology CL
-# adds cell_type_curie, cell_type_label, cell_type_score columns
+%%ontomcp annotate --df plots --col trait --ontology TO
+# adds trait_curie, trait_label, trait_score columns
 ```
 
 ---
@@ -192,6 +196,7 @@ Click any node for its term card. Double-click to re-centre the graph on it.
 | `ONTOMCP_TRANSPORT`    | `stdio`              | MCP transport: `stdio` (Claude) or `sse` (GPT/remote) |
 | `ONTOMCP_MCP_HOST`     | `127.0.0.1`          | SSE bind address (use `0.0.0.0` to expose) |
 | `ONTOMCP_MCP_PORT`     | `8001`               | SSE port (only used when `TRANSPORT=sse`) |
+| `AGROPORTAL_API_KEY`   | _(unset)_            | Crop Ontology (AgroPortal) key — optional; CO lookups disabled when unset |
 
 CLI flags override environment variables:
 ```bash
@@ -203,22 +208,41 @@ ontomcp-mcp --db-path /data/ontomcp.db
 
 ## Ontology Reference
 
-| ID     | Name                              | Domain                   | Key use case                   |
-|--------|-----------------------------------|--------------------------|--------------------------------|
-| GO     | Gene Ontology                     | Gene function, processes | Omics, pathway analysis        |
-| MONDO  | Mondo Disease Ontology            | Disease                  | Unified disease naming         |
-| HPO    | Human Phenotype Ontology          | Clinical phenotypes      | Rare disease, genetics         |
-| CHEBI  | Chemical Entities of Biological Interest | Small molecules   | Chemistry, pharmacology        |
-| UBERON | Uberon Anatomy Ontology           | Cross-species anatomy    | Tissue, organ annotation       |
-| CL     | Cell Ontology                     | Cell types               | Single-cell, immunology        |
-| EFO    | Experimental Factor Ontology      | Experimental design      | GWAS, Open Targets             |
-| MESH   | Medical Subject Headings          | Medical literature       | PubMed search, MeSH terms      |
-| NCIT   | NCI Thesaurus                     | Cancer, drugs, indications | Pharma / oncology            |
-| DOID   | Human Disease Ontology            | Disease                  | MONDO mapping target           |
-| PR     | Protein Ontology                  | Proteins, complexes      | Drug targets                   |
+| ID     | Name                                   | Domain                          | Key use case                      |
+|--------|----------------------------------------|---------------------------------|-----------------------------------|
+| PO     | Plant Ontology                         | Plant anatomy & growth stages   | Tissue / organ / stage annotation |
+| TO     | Plant Trait Ontology                   | Phenotypic plant traits         | Crop trait curation, breeding     |
+| PECO   | Plant Experimental Conditions Ontology | Treatments & growth conditions  | Experiment & treatment metadata   |
+| PPO    | Plant Phenology Ontology               | Phenological growth stages      | Phenology, flowering time         |
+| PSO    | Plant Stress Ontology                  | Biotic & abiotic stress         | Stress / tolerance studies        |
+| FLOPO  | Flora Phenotype Ontology               | Plant phenotypes from floras    | Botanical phenotype annotation    |
+| AGRO   | Agronomy Ontology                      | Agronomic practices & inputs    | Farm management, agronomy         |
+| ENVO   | Environment Ontology                   | Environments, biomes, soils     | Site / soil / climate annotation  |
+| PCO    | Population and Community Ontology       | Populations & communities       | Germplasm, accessions, diversity  |
+| GO     | Gene Ontology                          | Gene function & processes       | Crop genomics, pathway analysis   |
+| SO     | Sequence Ontology                      | Genomic sequence features       | Variants, markers, gene models    |
 
-All ontologies are free and served by the [EBI OLS4 API](https://www.ebi.ac.uk/ols4).
+The 11 ontologies above are free and served by the [EBI OLS4 API](https://www.ebi.ac.uk/ols4).
 No API key required.
+
+### Crop Ontology (AgroPortal)
+
+The [Crop Ontology](https://cropontology.org) — 42 per-crop trait dictionaries (Rice `CO_320`,
+Wheat `CO_321`, Maize `CO_322`, Barley, Sorghum, Banana, Potato, Cassava, Common Bean, Soybean,
+Chickpea, Cowpea, …) — is **not** on EBI OLS4. OntoMCP serves it through
+[AgroPortal](https://agroportal.eu), which **requires a free API key**:
+
+1. Register at [agroportal.eu/account](https://agroportal.eu/account) and copy your API key.
+2. Set it in your environment (or `.env`): `AGROPORTAL_API_KEY=your-key`.
+
+CO terms then resolve through the same tools as everything else — e.g. ask for `CO_320:0000625`
+or search `"plant height"` restricted to `["CO_335"]`. A single `search_terms` call transparently
+federates EBI OLS4 and AgroPortal and merges the results.
+
+**Without a key**, the 11 OLS4 ontologies work normally and Crop Ontology lookups return a
+structured `no_api_key` message. **Note:** AgroPortal models CO trait/method/scale category nodes
+with name-based IRIs that carry no CURIE, so CO `get_parents` / `get_children` results can be
+sparse; `get_term`, `search`, `validate_term`, and `map_across_ontologies` are unaffected.
 
 ---
 
@@ -236,6 +260,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide.
 
 ---
 
+## Acknowledgements
+
+PlantOntoMCP is a plant- and crop-focused adaptation of
+**[OntoMCP](https://github.com/jeanlouishoneine-tech/OntoMCP)** by
+**Jean-Louis Honeine**, which grounds biomedical concepts (GO, MONDO, HPO, ChEBI, …). This fork
+keeps the original architecture — the MCP/HTTP servers, the cache-first core, and the Jupyter
+extension — and retargets the ontology sources to plant and crop vocabularies (PO, TO, PECO, PPO,
+PSO, FLOPO, AGRO, ENVO, PCO, GO, SO), adding the Crop Ontology via AgroPortal as a second backend.
+With thanks to the original author and to the [EBI OLS4](https://www.ebi.ac.uk/ols4),
+[AgroPortal](https://agroportal.eu), [Planteome](https://planteome.org), and
+[Crop Ontology](https://cropontology.org) projects for the open data.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The original copyright (© 2026 Jean-Louis Honeine) is preserved in
+the [LICENSE](LICENSE) file, as required.

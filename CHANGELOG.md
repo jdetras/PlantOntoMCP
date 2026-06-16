@@ -10,6 +10,30 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Crop Ontology (CO) via AgroPortal.** 42 per-crop trait dictionaries (Rice `CO_320`,
+  Wheat `CO_321`, Maize `CO_322`, …) are now a second backend behind the same 12 tools.
+  A new `FederatedClient` routes each CURIE to its source (EBI OLS4 or AgroPortal) and
+  merges `search` results across both. AgroPortal requires a free API key
+  (`AGROPORTAL_API_KEY`); when unset, the OLS4 ontologies work normally and CO lookups
+  return a structured `no_api_key` message. New `core/agroportal_client.py`,
+  `core/federated_client.py`, and `core/ontology_client.py` (shared `OntologyClient`
+  protocol); `suggest_ontology` routes recognized crops to their CO dictionary.
+  Known limit: CO trait/method/scale category nodes use name-based IRIs without CURIEs, so
+  CO `get_parents`/`get_children` can be sparse; the other tools are unaffected.
+
+### Changed
+- **Retargeted the ontology registry from biomedical to plant & crop domains.** The
+  registry now serves the Plant Ontology (PO), Plant Trait Ontology (TO), PECO, PPO,
+  PSO, FLOPO, AGRO, ENVO, and PCO via the EBI OLS4 API, with GO and SO retained for
+  crop genomics. The previous biomedical set (MONDO, HPO, ChEBI, UBERON, CL, EFO,
+  MeSH, NCIT, DOID, PR) has been removed. All 12 tools, both servers, the cache, and
+  the Jupyter extension are unchanged — only the ontology sources differ.
+- `suggest_ontology` keyword rules and example terms retuned for plant/crop research
+  contexts (anatomy, traits, growth stages, stress, agronomy, environment, genomics).
+- Dropped the `HP` → `HPO` CURIE prefix alias; no plant/crop ontology needs aliasing
+  (`_PREFIX_ALIASES` is now an empty extension hook).
+
+### Added
 - `get_parents` / `get_children` tools and `/term/{curie}/parents` `…/children` routes:
   true one-hop `is_a` edges, the new source of truth for the relationships table and
   `get_term_graph`

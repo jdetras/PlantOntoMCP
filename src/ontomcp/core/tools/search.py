@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ontomcp.core import cache
 from ontomcp.core.config import DB_PATH, SEARCH_LIMIT_MAX
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, normalize_ontologies, ols_client
 
 logger = logging.getLogger("ontomcp")
@@ -17,7 +17,7 @@ async def search_terms(
     limit: int = 10,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Search ontology terms by free text. Cache (FTS5) first, OLS on a miss.
 

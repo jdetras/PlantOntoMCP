@@ -2,7 +2,7 @@
 
 Usage:
 
-    %%ontomcp annotate --df cells --col cell_type --ontology CL
+    %%ontomcp annotate --df plots --col trait --ontology TO
     (cell body may be empty)
 
 Resolves the named DataFrame from the user namespace, annotates one column via the
@@ -45,7 +45,7 @@ class OntoMCPMagics(Magics):
     @magic_arguments()
     @argument("--df", required=True, help="Name of the DataFrame variable")
     @argument("--col", required=True, help="Column to annotate")
-    @argument("--ontology", default=None, help="Restrict matches to this ontology, e.g. CL")
+    @argument("--ontology", default=None, help="Restrict matches to this ontology, e.g. TO")
     @argument("--threshold", type=float, default=0.8, help="Match score cutoff (0-1)")
     def _annotate(self, argline):
         args = parse_argstring(self._annotate, argline)

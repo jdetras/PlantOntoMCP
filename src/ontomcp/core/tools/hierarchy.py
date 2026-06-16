@@ -18,7 +18,7 @@ from pathlib import Path
 
 from ontomcp.core import cache
 from ontomcp.core.config import DB_PATH, DESCENDANTS_CAP
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, ols_client, safe_normalize_curie
 
 logger = logging.getLogger("ontomcp")
@@ -41,7 +41,7 @@ async def get_parents(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Return DIRECT parent (one-hop broader) terms of a CURIE.
 
@@ -67,7 +67,7 @@ async def get_children(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Return DIRECT child (one-hop narrower) terms of a CURIE, capped at 50 nodes.
 
@@ -96,7 +96,7 @@ async def get_ancestors(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Return the TRANSITIVE set of ancestor (broader) terms of a CURIE.
 
@@ -123,7 +123,7 @@ async def get_descendants(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[list[dict], bool]:
     """Return the TRANSITIVE set of descendant (narrower) terms, capped at 50 nodes.
 

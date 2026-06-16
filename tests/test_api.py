@@ -238,6 +238,6 @@ async def test_bulk_too_many_400(api):
 
 async def test_suggest(api):
     async with api(lambda r: httpx.Response(200)) as http:
-        resp = await http.post("/suggest", json={"context": "single cell RNA data"})
+        resp = await http.post("/suggest", json={"context": "leaf and root anatomy"})
     assert resp.status_code == 200
-    assert resp.json()["data"][0]["ontology"] == "CL"
+    assert resp.json()["data"][0]["ontology"] == "PO"

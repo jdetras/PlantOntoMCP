@@ -21,56 +21,171 @@ OLS_BACKOFF_BASE = 0.5  # seconds; sleep = base * 2 ** (attempt - 1)
 OLS_RETRY_STATUS = (429, 500, 502, 503, 504)
 
 # --- Ontology registry (v1) ------------------------------------------------
-# Free ontologies served via the EBI OLS4 API. No API key required.
+# Free plant & crop ontologies served via the EBI OLS4 API. No API key required.
 
 # ``slug`` is the lowercase ontology id OLS uses in URL paths and the search
-# filter. It usually equals the lowercased registry key, but not always (HPO ->
-# "hp"), so it is stored explicitly here as the single source of truth.
+# filter. For every ontology below it equals the lowercased registry key, but it
+# is stored explicitly so a future ontology whose slug differs from its CURIE
+# prefix has a single source of truth.
 ONTOLOGIES: dict[str, dict[str, str]] = {
-    "GO": {"name": "Gene Ontology", "domain": "Gene function, biological processes", "slug": "go"},
-    "MONDO": {"name": "Mondo Disease Ontology", "domain": "Disease", "slug": "mondo"},
-    "HPO": {"name": "Human Phenotype Ontology", "domain": "Clinical phenotypes", "slug": "hp"},
-    "CHEBI": {
-        "name": "Chemical Entities of Biological Interest",
-        "domain": "Small molecules, drugs",
-        "slug": "chebi",
+    "PO": {
+        "name": "Plant Ontology",
+        "domain": "Plant anatomy and developmental growth stages",
+        "slug": "po",
     },
-    "UBERON": {
-        "name": "Uberon Anatomy Ontology",
-        "domain": "Cross-species anatomy",
-        "slug": "uberon",
+    "TO": {
+        "name": "Plant Trait Ontology",
+        "domain": "Phenotypic traits of plants (the primary crop-trait vocabulary)",
+        "slug": "to",
     },
-    "CL": {"name": "Cell Ontology", "domain": "Cell types", "slug": "cl"},
-    "EFO": {"name": "Experimental Factor Ontology", "domain": "Experimental design", "slug": "efo"},
-    "MESH": {"name": "Medical Subject Headings", "domain": "Medical literature", "slug": "mesh"},
-    "NCIT": {
-        "name": "NCI Thesaurus",
-        "domain": "Cancer, drugs, indications (pharma/oncology)",
-        "slug": "ncit",
+    "PECO": {
+        "name": "Plant Experimental Conditions Ontology",
+        "domain": "Treatments, growth conditions, and experimental factors",
+        "slug": "peco",
     },
-    "DOID": {
-        "name": "Human Disease Ontology",
-        "domain": "Disease (the primary MONDO mapping target)",
-        "slug": "doid",
+    "PPO": {
+        "name": "Plant Phenology Ontology",
+        "domain": "Phenological (seasonal) growth stages and events",
+        "slug": "ppo",
     },
-    "PR": {"name": "Protein Ontology", "domain": "Proteins, complexes, drug targets", "slug": "pr"},
+    "PSO": {
+        "name": "Plant Stress Ontology",
+        "domain": "Biotic and abiotic plant stresses",
+        "slug": "pso",
+    },
+    "FLOPO": {
+        "name": "Flora Phenotype Ontology",
+        "domain": "Plant phenotypes and traits from botanical floras",
+        "slug": "flopo",
+    },
+    "AGRO": {
+        "name": "Agronomy Ontology",
+        "domain": "Agronomic practices, inputs, and farm management",
+        "slug": "agro",
+    },
+    "ENVO": {
+        "name": "Environment Ontology",
+        "domain": "Environments, biomes, soils, and habitats",
+        "slug": "envo",
+    },
+    "PCO": {
+        "name": "Population and Community Ontology",
+        "domain": "Populations, communities, and their attributes",
+        "slug": "pco",
+    },
+    "GO": {
+        "name": "Gene Ontology",
+        "domain": "Gene function and biological processes (cross-kingdom; crop genomics)",
+        "slug": "go",
+    },
+    "SO": {
+        "name": "Sequence Ontology",
+        "domain": "Genomic sequence features and types (genes, exons, variants)",
+        "slug": "so",
+    },
 }
 
-# Full OBI IRI templates per ontology. CURIE id fills the {id} slot, then the
-# result is double-URL-encoded when used as an OLS path parameter.
+# Full OBO IRI templates per ontology. CURIE id fills the {id} slot, then the
+# result is double-URL-encoded when used as an OLS path parameter. Every plant
+# ontology here mints standard OBO PURLs, so the prefix maps 1:1 to the template.
 IRI_TEMPLATES: dict[str, str] = {
+    "PO": "http://purl.obolibrary.org/obo/PO_{id}",
+    "TO": "http://purl.obolibrary.org/obo/TO_{id}",
+    "PECO": "http://purl.obolibrary.org/obo/PECO_{id}",
+    "PPO": "http://purl.obolibrary.org/obo/PPO_{id}",
+    "PSO": "http://purl.obolibrary.org/obo/PSO_{id}",
+    "FLOPO": "http://purl.obolibrary.org/obo/FLOPO_{id}",
+    "AGRO": "http://purl.obolibrary.org/obo/AGRO_{id}",
+    "ENVO": "http://purl.obolibrary.org/obo/ENVO_{id}",
+    "PCO": "http://purl.obolibrary.org/obo/PCO_{id}",
     "GO": "http://purl.obolibrary.org/obo/GO_{id}",
-    "MONDO": "http://purl.obolibrary.org/obo/MONDO_{id}",
-    "HPO": "http://purl.obolibrary.org/obo/HP_{id}",
-    "CHEBI": "http://purl.obolibrary.org/obo/CHEBI_{id}",
-    "UBERON": "http://purl.obolibrary.org/obo/UBERON_{id}",
-    "CL": "http://purl.obolibrary.org/obo/CL_{id}",
-    "EFO": "http://www.ebi.ac.uk/efo/EFO_{id}",
-    "MESH": "http://id.nlm.nih.gov/mesh/{id}",
-    "NCIT": "http://purl.obolibrary.org/obo/NCIT_{id}",
-    "DOID": "http://purl.obolibrary.org/obo/DOID_{id}",
-    "PR": "http://purl.obolibrary.org/obo/PR_{id}",
+    "SO": "http://purl.obolibrary.org/obo/SO_{id}",
 }
+
+# --- AgroPortal / Crop Ontology backend ------------------------------------
+# The Crop Ontology (CO) is not on EBI OLS4; its per-crop trait dictionaries are
+# served by AgroPortal (an OntoPortal/BioPortal instance). Unlike OLS4, AgroPortal
+# REQUIRES an API key (free, from https://agroportal.eu/account). Set it via the
+# AGROPORTAL_API_KEY env var; when unset, Crop Ontology lookups return a structured
+# ``no_api_key`` error and the OLS-backed ontologies keep working unaffected.
+
+AGROPORTAL_BASE_URL = "https://data.agroportal.eu"
+AGROPORTAL_API_KEY = os.environ.get("AGROPORTAL_API_KEY")
+# Crop Ontology class IRIs look like ``https://cropontology.org/rdf/CO_320:0000625``
+# (the CURIE is the IRI tail), so the template embeds the acronym and {id} = local id.
+AGROPORTAL_CLASS_IRI_BASE = "https://cropontology.org/rdf/"
+
+# Crop Ontology per-crop ontologies on AgroPortal (acronym -> display name). The
+# acronym (e.g. ``CO_320``) is both the registry key and the CURIE prefix.
+CROP_ONTOLOGIES: dict[str, str] = {
+    "CO_020": "Multi-Crop Passport Ontology",
+    "CO_121": "Wheat Plant Anatomy and Development Ontology",
+    "CO_125": "Banana Anatomy Ontology",
+    "CO_320": "Rice Ontology",
+    "CO_321": "Wheat Ontology",
+    "CO_322": "Maize Ontology",
+    "CO_323": "Barley Ontology",
+    "CO_324": "Sorghum Ontology",
+    "CO_325": "Banana Ontology",
+    "CO_326": "Coconut Ontology",
+    "CO_327": "Pearl Millet Ontology",
+    "CO_330": "Potato Ontology",
+    "CO_331": "Sweet Potato Ontology",
+    "CO_333": "Beet Ontology",
+    "CO_334": "Cassava Ontology",
+    "CO_335": "Common Bean Ontology",
+    "CO_336": "Soybean Ontology",
+    "CO_337": "Groundnut Ontology",
+    "CO_338": "Chickpea Ontology",
+    "CO_339": "Lentil Ontology",
+    "CO_340": "Cowpea Ontology",
+    "CO_341": "Pigeonpea Ontology",
+    "CO_343": "Yam Ontology",
+    "CO_345": "Brachiaria Ontology",
+    "CO_346": "Mungbean Ontology",
+    "CO_347": "Castor Bean Ontology",
+    "CO_348": "Brassica Ontology",
+    "CO_350": "Oat Ontology",
+    "CO_356": "Vitis Ontology",
+    "CO_357": "Woody Plant Ontology",
+    "CO_358": "Cotton Ontology",
+    "CO_359": "Sunflower Ontology",
+    "CO_360": "Sugar Kelp Ontology",
+    "CO_365": "Fababean Ontology",
+    "CO_366": "Bambara Groundnut Ontology",
+    "CO_367": "Quinoa Ontology",
+    "CO_369": "Sainfoin Ontology",
+    "CO_370": "Apple Ontology",
+    "CO_371": "Blueberry Ontology",
+    "CO_372": "Strawberry Ontology",
+    "CO_374": "Red Clover Ontology",
+    "CO_715": "Crop Research Ontology",
+}
+
+# Merge the Crop Ontology dictionaries into the shared registry so every tool,
+# the cache, and /health treat them like any other ontology. They are tagged
+# ``source="agroportal"`` so the federated client routes them to AgroPortal; all
+# other entries default to ``source="ols"`` (see ``ontology_source``).
+for _acr, _name in CROP_ONTOLOGIES.items():
+    ONTOLOGIES[_acr] = {
+        "name": _name,
+        "domain": f"Crop Ontology — {_name} traits, variables, methods, and scales",
+        "slug": _acr,
+        "source": "agroportal",
+    }
+    IRI_TEMPLATES[_acr] = f"{AGROPORTAL_CLASS_IRI_BASE}{_acr}:{{id}}"
+
+
+def ontology_source(prefix: str) -> str:
+    """Return the backend for an ontology prefix: ``"agroportal"`` or ``"ols"``.
+
+    Prefixes default to ``"ols"`` (the EBI OLS4 backend); only the Crop Ontology
+    entries carry an explicit ``source="agroportal"``. Unknown prefixes fall back
+    to ``"ols"`` so the existing behaviour is unchanged.
+    """
+    meta = ONTOLOGIES.get(prefix.upper())
+    return meta.get("source", "ols") if meta else "ols"
+
 
 # --- Cache -----------------------------------------------------------------
 

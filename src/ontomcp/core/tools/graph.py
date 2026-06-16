@@ -10,7 +10,7 @@ relationship, never a fabricated direct link to a distant ancestor.
 from pathlib import Path
 
 from ontomcp.core.config import DB_PATH, GRAPH_NODE_CAP
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, ols_client
 from ontomcp.core.tools.hierarchy import get_children, get_parents
 from ontomcp.core.tools.term import get_term
@@ -25,7 +25,7 @@ async def get_term_graph(
     include_siblings: bool = True,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[dict, bool]:
     """Build ``({nodes, edges, focus_curie}, cache_hit)`` centred on a term.
 
