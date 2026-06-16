@@ -1,14 +1,16 @@
-# OntoMCP
+# PlantOntoMCP
 
 **Ontology grounding for plant and crop scientists.**
 
-OntoMCP is a client-agnostic MCP server and Jupyter extension for notebooks. It resolves
+PlantOntoMCP is a client-agnostic MCP server and Jupyter extension for notebooks. It resolves
 plant and crop concepts to canonical ontology terms — leaf becomes `PO:0025034`, plant
-height becomes `TO:0000207` — with no hallucinated IDs and no API key required.
-It works with any MCP-compatible client: Claude (Desktop / Code), GPT, Codex CLI, Cursor,
-and others.
+height becomes `TO:0000207` — with no hallucinated IDs and no API key required for the core
+ontologies. It works with any MCP-compatible client: Claude (Desktop / Code), GPT, Codex CLI,
+Cursor, and others.
 
-[![CI](https://github.com/jeanlouishoneine-tech/OntoMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/jeanlouishoneine-tech/OntoMCP/actions/workflows/ci.yml)
+> A plant/crop adaptation of [OntoMCP](https://github.com/jeanlouishoneine-tech/OntoMCP) by
+> Jean-Louis Honeine, which targets biomedical ontologies. See [Acknowledgements](#acknowledgements).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
@@ -35,8 +37,8 @@ and others.
 # Install uv via Homebrew (recommended on macOS)
 brew install uv
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 make install
 ```
 
@@ -44,8 +46,8 @@ make install
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 make install
 ```
 
@@ -54,8 +56,8 @@ make install
 # Install uv via winget
 winget install astral-sh.uv
 
-git clone https://github.com/jeanlouishoneine-tech/OntoMCP.git
-cd OntoMCP
+git clone https://github.com/jdetras/PlantOntoMCP.git
+cd PlantOntoMCP
 uv sync --extra dev   # make is not available by default on Windows
 ```
 
@@ -85,7 +87,7 @@ uv sync --extra jupyter
      "mcpServers": {
        "ontomcp": {
          "command": "uv",
-         "args": ["run", "--directory", "/path/to/OntoMCP", "ontomcp-mcp"]
+         "args": ["run", "--directory", "/path/to/PlantOntoMCP", "ontomcp-mcp"]
        }
      }
    }
@@ -258,6 +260,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide.
 
 ---
 
+## Acknowledgements
+
+PlantOntoMCP is a plant- and crop-focused adaptation of
+**[OntoMCP](https://github.com/jeanlouishoneine-tech/OntoMCP)** by
+**Jean-Louis Honeine**, which grounds biomedical concepts (GO, MONDO, HPO, ChEBI, …). This fork
+keeps the original architecture — the MCP/HTTP servers, the cache-first core, and the Jupyter
+extension — and retargets the ontology sources to plant and crop vocabularies (PO, TO, PECO, PPO,
+PSO, FLOPO, AGRO, ENVO, PCO, GO, SO), adding the Crop Ontology via AgroPortal as a second backend.
+With thanks to the original author and to the [EBI OLS4](https://www.ebi.ac.uk/ols4),
+[AgroPortal](https://agroportal.eu), [Planteome](https://planteome.org), and
+[Crop Ontology](https://cropontology.org) projects for the open data.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The original copyright (© 2026 Jean-Louis Honeine) is preserved in
+the [LICENSE](LICENSE) file, as required.
