@@ -16,7 +16,6 @@ from ontomcp.core.ols_client import OLSClient
 from ontomcp.mcp_server import server
 
 
-# The 10 tools that must be registered (plan.md §"The 10 Tools").
 def _tool_payload(result):
     """Return a tool's payload.
 
@@ -41,6 +40,8 @@ EXPECTED_TOOLS = {
     "map_across_ontologies",
     "bulk_annotate",
     "get_term_graph",
+    "get_crop_variable",
+    "get_crop_trait",
 }
 
 

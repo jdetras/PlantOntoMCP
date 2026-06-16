@@ -13,8 +13,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from ontomcp.api.routes import bulk, graph, health, search, suggest, terms
+from ontomcp.api.routes import bulk, crop, graph, health, search, suggest, terms
 from ontomcp.core import cache, config
+from ontomcp.core.crop_ontology_client import CropOntologyClient
 from ontomcp.core.federated_client import FederatedClient
 from ontomcp.core.logging import configure_logging
 
@@ -39,10 +40,12 @@ async def lifespan(app: FastAPI):
     cache.init_db(db_path)
     logger.info("OntoMCP API ready (db=%s)", db_path)
     app.state.ols_client = FederatedClient()
+    app.state.crop_client = CropOntologyClient()
     try:
         yield
     finally:
         await app.state.ols_client.aclose()
+        await app.state.crop_client.aclose()
 
 
 def create_app() -> FastAPI:
@@ -56,7 +59,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    for module in (health, search, terms, graph, bulk, suggest):
+    for module in (health, search, terms, graph, bulk, suggest, crop):
         app.include_router(module.router)
 
     return app

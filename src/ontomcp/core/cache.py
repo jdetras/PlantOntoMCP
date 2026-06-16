@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS ontology_versions (
     fetched_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS crop_records (
+    curie        TEXT NOT NULL,
+    record_type  TEXT NOT NULL,
+    label        TEXT,
+    record_json  TEXT NOT NULL,
+    fetched_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (curie, record_type)
+);
+
 CREATE INDEX IF NOT EXISTS idx_terms_ontology  ON terms(ontology);
 CREATE INDEX IF NOT EXISTS idx_terms_label     ON terms(label);
 CREATE INDEX IF NOT EXISTS idx_synonyms_curie  ON synonyms(curie);
@@ -366,6 +375,63 @@ def put_ontology_version(db_path: Path, ontology: str, version: str | None) -> N
                     fetched_at = CURRENT_TIMESTAMP
                 """,
                 (ontology, version),
+            )
+    finally:
+        conn.close()
+
+
+def get_crop_record(db_path: Path, curie: str, record_type: str) -> dict | None:
+    """Return a cached Crop Ontology BrAPI record (variable/trait) as a dict, or None.
+
+    The stored ``record_json`` is the full tool-facing dict, so the returned shape
+    is identical whether served from cache or freshly fetched.
+    """
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT record_json FROM crop_records WHERE curie = ? AND record_type = ?",
+            (curie, record_type),
+        ).fetchone()
+    finally:
+        conn.close()
+    return json.loads(row["record_json"]) if row else None
+
+
+def get_crop_record_if_fresh(
+    db_path: Path, curie: str, record_type: str, ttl_days: int = CACHE_TTL_DAYS
+) -> dict | None:
+    """Return a cached crop record only if present and newer than ``ttl_days``."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT record_json, fetched_at >= datetime('now', ?) AS fresh "
+            "FROM crop_records WHERE curie = ? AND record_type = ?",
+            (f"-{int(ttl_days)} days", curie, record_type),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None or not row["fresh"]:
+        return None
+    return json.loads(row["record_json"])
+
+
+def put_crop_record(
+    db_path: Path, curie: str, record_type: str, label: str | None, record: dict
+) -> None:
+    """Upsert a Crop Ontology BrAPI record (idempotent), refreshing ``fetched_at``."""
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO crop_records (curie, record_type, label, record_json, fetched_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(curie, record_type) DO UPDATE SET
+                    label       = excluded.label,
+                    record_json = excluded.record_json,
+                    fetched_at  = CURRENT_TIMESTAMP
+                """,
+                (curie, record_type, label, json.dumps(record)),
             )
     finally:
         conn.close()

@@ -18,14 +18,17 @@ Cursor, and others.
 
 ## What it does
 
-- **12 tools** — search, fetch, validate, map, annotate, and graph ontology terms
+- **14 tools** — search, fetch, validate, map, annotate, and graph ontology terms
   (including direct `get_parents` / `get_children` alongside transitive `get_ancestors` / `get_descendants`)
 - **11 OLS4 ontologies** — PO, TO, PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO (plant/crop),
   plus GO and SO (crop genomics) via the EBI OLS4 API
 - **42 Crop Ontology dictionaries** — Rice (CO_320), Wheat (CO_321), Maize (CO_322), Cassava,
   Banana, Common Bean, … served via AgroPortal (optional — needs a free API key)
+- **Crop Ontology trait dictionary** — `get_crop_variable` / `get_crop_trait` resolve a CO
+  Variable's Trait–Method–Scale triple (the precise CURIEs for phenotyping annotation) from
+  the live cropontology.org BrAPI endpoint — no API key needed
 - **SQLite cache** — fast offline lookups, 7-day TTL, FTS5 full-text search
-- **Client-agnostic MCP** — all 12 tools work in Claude (stdio) and GPT / Codex CLI / Cursor (SSE)
+- **Client-agnostic MCP** — all 14 tools work in Claude (stdio) and GPT / Codex CLI / Cursor (SSE)
 - **Jupyter extension** — search panel, interactive term graph, `%%ontomcp` cell magic
 
 ---
@@ -93,7 +96,7 @@ uv sync --extra jupyter
    }
    ```
 
-3. Restart Claude Desktop. All 12 tools appear automatically.
+3. Restart Claude Desktop. All 14 tools appear automatically.
 
 **Try it:** Ask Claude — *"What is the ontology term for plant height?"* — and it will
 return `TO:0000207` with definition, synonyms, and an ancestor graph.
@@ -103,7 +106,7 @@ return `TO:0000207` with definition, synonyms, and an ancestor graph.
 ### GPT / Codex CLI / other MCP clients (SSE)
 
 Claude speaks MCP over stdio; GPT, Codex CLI, and remote clients speak it over
-HTTP/SSE. Start OntoMCP in SSE mode — same entrypoint, same 12 tools, switched by
+HTTP/SSE. Start OntoMCP in SSE mode — same entrypoint, same 14 tools, switched by
 an environment variable:
 
 ```bash
@@ -243,6 +246,19 @@ federates EBI OLS4 and AgroPortal and merges the results.
 structured `no_api_key` message. **Note:** AgroPortal models CO trait/method/scale category nodes
 with name-based IRIs that carry no CURIE, so CO `get_parents` / `get_children` results can be
 sparse; `get_term`, `search`, `validate_term`, and `map_across_ontologies` are unaffected.
+
+### Crop Ontology trait dictionary (variable ↔ trait/method/scale)
+
+AgroPortal's CO snapshot exposes the Trait/Method/Scale/Variable term classes but **not the
+relationships linking them**. To get a Variable's full composition — the precise CURIEs needed
+for phenotyping annotation — use the trait-dictionary tools, which read the live
+[cropontology.org](https://cropontology.org/api_help) BrAPI endpoint (**no API key required**):
+
+- `get_crop_variable("CO_320:0000625")` → the Variable with its `trait`, `method`, and `scale`
+  sub-records (each a CURIE + name), plus context of use, growth stage, and scale valid-values.
+- `get_crop_trait("CO_320:0000092")` → the Trait and the CURIEs of every Variable that measures it.
+
+These are Crop Ontology only; other CURIEs return `not_crop_ontology` (use `get_term` instead).
 
 ---
 
