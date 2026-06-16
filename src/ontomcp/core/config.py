@@ -102,6 +102,91 @@ IRI_TEMPLATES: dict[str, str] = {
     "SO": "http://purl.obolibrary.org/obo/SO_{id}",
 }
 
+# --- AgroPortal / Crop Ontology backend ------------------------------------
+# The Crop Ontology (CO) is not on EBI OLS4; its per-crop trait dictionaries are
+# served by AgroPortal (an OntoPortal/BioPortal instance). Unlike OLS4, AgroPortal
+# REQUIRES an API key (free, from https://agroportal.eu/account). Set it via the
+# AGROPORTAL_API_KEY env var; when unset, Crop Ontology lookups return a structured
+# ``no_api_key`` error and the OLS-backed ontologies keep working unaffected.
+
+AGROPORTAL_BASE_URL = "https://data.agroportal.eu"
+AGROPORTAL_API_KEY = os.environ.get("AGROPORTAL_API_KEY")
+# Crop Ontology class IRIs look like ``https://cropontology.org/rdf/CO_320:0000625``
+# (the CURIE is the IRI tail), so the template embeds the acronym and {id} = local id.
+AGROPORTAL_CLASS_IRI_BASE = "https://cropontology.org/rdf/"
+
+# Crop Ontology per-crop ontologies on AgroPortal (acronym -> display name). The
+# acronym (e.g. ``CO_320``) is both the registry key and the CURIE prefix.
+CROP_ONTOLOGIES: dict[str, str] = {
+    "CO_020": "Multi-Crop Passport Ontology",
+    "CO_121": "Wheat Plant Anatomy and Development Ontology",
+    "CO_125": "Banana Anatomy Ontology",
+    "CO_320": "Rice Ontology",
+    "CO_321": "Wheat Ontology",
+    "CO_322": "Maize Ontology",
+    "CO_323": "Barley Ontology",
+    "CO_324": "Sorghum Ontology",
+    "CO_325": "Banana Ontology",
+    "CO_326": "Coconut Ontology",
+    "CO_327": "Pearl Millet Ontology",
+    "CO_330": "Potato Ontology",
+    "CO_331": "Sweet Potato Ontology",
+    "CO_333": "Beet Ontology",
+    "CO_334": "Cassava Ontology",
+    "CO_335": "Common Bean Ontology",
+    "CO_336": "Soybean Ontology",
+    "CO_337": "Groundnut Ontology",
+    "CO_338": "Chickpea Ontology",
+    "CO_339": "Lentil Ontology",
+    "CO_340": "Cowpea Ontology",
+    "CO_341": "Pigeonpea Ontology",
+    "CO_343": "Yam Ontology",
+    "CO_345": "Brachiaria Ontology",
+    "CO_346": "Mungbean Ontology",
+    "CO_347": "Castor Bean Ontology",
+    "CO_348": "Brassica Ontology",
+    "CO_350": "Oat Ontology",
+    "CO_356": "Vitis Ontology",
+    "CO_357": "Woody Plant Ontology",
+    "CO_358": "Cotton Ontology",
+    "CO_359": "Sunflower Ontology",
+    "CO_360": "Sugar Kelp Ontology",
+    "CO_365": "Fababean Ontology",
+    "CO_366": "Bambara Groundnut Ontology",
+    "CO_367": "Quinoa Ontology",
+    "CO_369": "Sainfoin Ontology",
+    "CO_370": "Apple Ontology",
+    "CO_371": "Blueberry Ontology",
+    "CO_372": "Strawberry Ontology",
+    "CO_374": "Red Clover Ontology",
+    "CO_715": "Crop Research Ontology",
+}
+
+# Merge the Crop Ontology dictionaries into the shared registry so every tool,
+# the cache, and /health treat them like any other ontology. They are tagged
+# ``source="agroportal"`` so the federated client routes them to AgroPortal; all
+# other entries default to ``source="ols"`` (see ``ontology_source``).
+for _acr, _name in CROP_ONTOLOGIES.items():
+    ONTOLOGIES[_acr] = {
+        "name": _name,
+        "domain": f"Crop Ontology — {_name} traits, variables, methods, and scales",
+        "slug": _acr,
+        "source": "agroportal",
+    }
+    IRI_TEMPLATES[_acr] = f"{AGROPORTAL_CLASS_IRI_BASE}{_acr}:{{id}}"
+
+
+def ontology_source(prefix: str) -> str:
+    """Return the backend for an ontology prefix: ``"agroportal"`` or ``"ols"``.
+
+    Prefixes default to ``"ols"`` (the EBI OLS4 backend); only the Crop Ontology
+    entries carry an explicit ``source="agroportal"``. Unknown prefixes fall back
+    to ``"ols"`` so the existing behaviour is unchanged.
+    """
+    meta = ONTOLOGIES.get(prefix.upper())
+    return meta.get("source", "ols") if meta else "ols"
+
+
 # --- Cache -----------------------------------------------------------------
 
 # Override with ONTOMCP_DB_PATH; defaults to a file in the user's home dir.

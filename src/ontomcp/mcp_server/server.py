@@ -21,14 +21,15 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from ontomcp.core import cache, config, tools
+from ontomcp.core.federated_client import FederatedClient
 from ontomcp.core.logging import configure_logging
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 
 logger = logging.getLogger("ontomcp")
 
-# Process-lifetime shared OLS client, created in the lifespan below. Tests may
-# replace this directly to inject a mock-transport client.
-_client: OLSClient | None = None
+# Process-lifetime shared ontology client (federates OLS + AgroPortal), created
+# in the lifespan below. Tests may replace this directly to inject a mock client.
+_client: OntologyClient | None = None
 
 # Resolved at lifespan start so a late-set ONTOMCP_DB_PATH (from --db-path) wins.
 # Falls back to the import-time config default until then.
@@ -53,7 +54,7 @@ async def _lifespan(server: FastMCP):
     DB_PATH = _resolve_db_path()
     cache.init_db(DB_PATH)
     logger.info("OntoMCP MCP server ready (db=%s)", DB_PATH)
-    _client = OLSClient()
+    _client = FederatedClient()
     try:
         yield
     finally:

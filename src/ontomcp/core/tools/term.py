@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ontomcp.core import cache
 from ontomcp.core.config import DB_PATH
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, ols_client, safe_normalize_curie
 
 logger = logging.getLogger("ontomcp")
@@ -17,7 +17,7 @@ logger = logging.getLogger("ontomcp")
 _DO_NOT_ANNOTATE_MARKERS = ("do_not_annotate",)
 
 
-async def _ontology_version(ontology: str, db_path: Path, cli: OLSClient) -> str | None:
+async def _ontology_version(ontology: str, db_path: Path, cli: OntologyClient) -> str | None:
     """Return an ontology's source version, cache-first (fetched once, then reused).
 
     Version strings change only on ontology releases, so a cached value is reused
@@ -61,7 +61,7 @@ async def get_term(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[dict, bool]:
     """Return a full term record, cache-first with a 7-day TTL.
 
@@ -109,7 +109,7 @@ async def find_synonyms(
     curie: str,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[dict, bool]:
     """Return ``({exact, related, narrow, broad}, cache_hit)`` for a term.
 
@@ -125,7 +125,7 @@ async def find_synonyms(
 async def validate_term(
     curie: str,
     *,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[dict, bool]:
     """Check a term's current/obsolete status — always live, never cached.
 

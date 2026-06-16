@@ -383,12 +383,14 @@ def test_suggest_ontology_recommends_stress_ontologies():
     assert "PECO" in codes  # experimental-condition context
 
 
-def test_suggest_ontology_examples_cover_full_registry():
-    # Every registered ontology must have illustrative example terms, so a
-    # suggestion never returns an empty examples list.
+def test_suggest_ontology_examples_cover_core_ontologies():
+    # Every OLS-backed (core) ontology must carry illustrative example terms. The
+    # 42 Crop Ontology entries are best-effort (a few curated; the rest resolve via
+    # search/get_term), so they are exempt from this invariant.
     from ontomcp.core.tools.suggest import _EXAMPLE_TERMS
 
-    assert set(config.ONTOLOGIES) <= set(_EXAMPLE_TERMS)
+    core = {p for p in config.ONTOLOGIES if config.ontology_source(p) == "ols"}
+    assert core <= set(_EXAMPLE_TERMS)
 
 
 # --- map_across_ontologies -------------------------------------------------

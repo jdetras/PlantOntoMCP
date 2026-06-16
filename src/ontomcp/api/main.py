@@ -15,8 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ontomcp.api.routes import bulk, graph, health, search, suggest, terms
 from ontomcp.core import cache, config
+from ontomcp.core.federated_client import FederatedClient
 from ontomcp.core.logging import configure_logging
-from ontomcp.core.ols_client import OLSClient
 
 logger = logging.getLogger("ontomcp")
 
@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     app.state.db_path = db_path
     cache.init_db(db_path)
     logger.info("OntoMCP API ready (db=%s)", db_path)
-    app.state.ols_client = OLSClient()
+    app.state.ols_client = FederatedClient()
     try:
         yield
     finally:

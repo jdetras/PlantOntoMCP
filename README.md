@@ -18,8 +18,10 @@ and others.
 
 - **12 tools** — search, fetch, validate, map, annotate, and graph ontology terms
   (including direct `get_parents` / `get_children` alongside transitive `get_ancestors` / `get_descendants`)
-- **11 ontologies** — PO, TO, PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO (plant/crop), plus
-  GO and SO (crop genomics) via the EBI OLS4 API
+- **11 OLS4 ontologies** — PO, TO, PECO, PPO, PSO, FLOPO, AGRO, ENVO, PCO (plant/crop),
+  plus GO and SO (crop genomics) via the EBI OLS4 API
+- **42 Crop Ontology dictionaries** — Rice (CO_320), Wheat (CO_321), Maize (CO_322), Cassava,
+  Banana, Common Bean, … served via AgroPortal (optional — needs a free API key)
 - **SQLite cache** — fast offline lookups, 7-day TTL, FTS5 full-text search
 - **Client-agnostic MCP** — all 12 tools work in Claude (stdio) and GPT / Codex CLI / Cursor (SSE)
 - **Jupyter extension** — search panel, interactive term graph, `%%ontomcp` cell magic
@@ -192,6 +194,7 @@ Click any node for its term card. Double-click to re-centre the graph on it.
 | `ONTOMCP_TRANSPORT`    | `stdio`              | MCP transport: `stdio` (Claude) or `sse` (GPT/remote) |
 | `ONTOMCP_MCP_HOST`     | `127.0.0.1`          | SSE bind address (use `0.0.0.0` to expose) |
 | `ONTOMCP_MCP_PORT`     | `8001`               | SSE port (only used when `TRANSPORT=sse`) |
+| `AGROPORTAL_API_KEY`   | _(unset)_            | Crop Ontology (AgroPortal) key — optional; CO lookups disabled when unset |
 
 CLI flags override environment variables:
 ```bash
@@ -217,8 +220,27 @@ ontomcp-mcp --db-path /data/ontomcp.db
 | GO     | Gene Ontology                          | Gene function & processes       | Crop genomics, pathway analysis   |
 | SO     | Sequence Ontology                      | Genomic sequence features       | Variants, markers, gene models    |
 
-All ontologies are free and served by the [EBI OLS4 API](https://www.ebi.ac.uk/ols4).
+The 11 ontologies above are free and served by the [EBI OLS4 API](https://www.ebi.ac.uk/ols4).
 No API key required.
+
+### Crop Ontology (AgroPortal)
+
+The [Crop Ontology](https://cropontology.org) — 42 per-crop trait dictionaries (Rice `CO_320`,
+Wheat `CO_321`, Maize `CO_322`, Barley, Sorghum, Banana, Potato, Cassava, Common Bean, Soybean,
+Chickpea, Cowpea, …) — is **not** on EBI OLS4. OntoMCP serves it through
+[AgroPortal](https://agroportal.eu), which **requires a free API key**:
+
+1. Register at [agroportal.eu/account](https://agroportal.eu/account) and copy your API key.
+2. Set it in your environment (or `.env`): `AGROPORTAL_API_KEY=your-key`.
+
+CO terms then resolve through the same tools as everything else — e.g. ask for `CO_320:0000625`
+or search `"plant height"` restricted to `["CO_335"]`. A single `search_terms` call transparently
+federates EBI OLS4 and AgroPortal and merges the results.
+
+**Without a key**, the 11 OLS4 ontologies work normally and Crop Ontology lookups return a
+structured `no_api_key` message. **Note:** AgroPortal models CO trait/method/scale category nodes
+with name-based IRIs that carry no CURIE, so CO `get_parents` / `get_children` results can be
+sparse; `get_term`, `search`, `validate_term`, and `map_across_ontologies` are unaffected.
 
 ---
 

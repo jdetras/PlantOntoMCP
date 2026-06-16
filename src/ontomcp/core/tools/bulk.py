@@ -6,7 +6,7 @@ from pathlib import Path
 from rapidfuzz import fuzz
 
 from ontomcp.core.config import BULK_MAX, BULK_WARN, DB_PATH
-from ontomcp.core.ols_client import OLSClient
+from ontomcp.core.ontology_client import OntologyClient
 from ontomcp.core.tools._common import is_error, ols_client
 from ontomcp.core.tools.search import search_terms
 
@@ -41,7 +41,7 @@ async def bulk_annotate(
     threshold: float = 0.8,
     *,
     db_path: Path = DB_PATH,
-    client: OLSClient | None = None,
+    client: OntologyClient | None = None,
 ) -> tuple[dict, bool]:
     """Annotate a list of strings with their best-matching ontology terms.
 

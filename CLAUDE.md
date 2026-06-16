@@ -44,12 +44,18 @@ api/                   FastAPI — main.py app factory + routes/ (one router per
 jupyter_ext/           ipywidgets search panel, ipycytoscape graph, %%ontomcp cell magic;
                        talks to the FastAPI server over HTTP via client.py
 core/
-  config.py            SINGLE source of truth: ONTOLOGIES registry, IRI_TEMPLATES, OLS settings,
-                       payload caps, env-var config. Never redefine these elsewhere.
+  config.py            SINGLE source of truth: ONTOLOGIES registry (incl. 42 Crop Ontology
+                       entries tagged source="agroportal"), IRI_TEMPLATES, OLS + AgroPortal
+                       settings, payload caps, env config. Never redefine these elsewhere.
   ols_client.py        Async httpx client for OLS4 + all CURIE/IRI parsing. Network only —
                        never touches SQLite. Public methods never raise (return error dicts).
+  agroportal_client.py Async httpx client for AgroPortal (Crop Ontology backend), same surface
+                       as ols_client. Needs AGROPORTAL_API_KEY; keyless calls return no_api_key.
+  ontology_client.py   The OntologyClient Protocol that all three clients satisfy.
+  federated_client.py  Routes each lookup to OLS or AgroPortal by config.ontology_source, and
+                       partitions/merges search across both. This is the shared client.
   cache.py             SQLite layer (schema, FTS5 search, read/write). The ONLY module that
-                       opens a DB connection.
+                       opens a DB connection. Backend-agnostic — caches CO and OLS terms alike.
   tools/               The 12 tool functions — cache-first orchestration lives here.
 ```
 
@@ -57,12 +63,23 @@ core/
 A tool in `core/tools/` is the orchestrator. Canonical path (see `tools/term.py::get_term`):
 1. Normalize the CURIE via `safe_normalize_curie` (returns a structured error dict, never raises).
 2. Check the cache: `cache.get_term_if_fresh` (7-day TTL).
-3. On a miss, fetch via the shared `OLSClient`, **write back** with `cache.put_term`, then re-read
-   the stored row so the returned shape is identical hit-or-miss.
+3. On a miss, fetch via the shared client (a `FederatedClient`, which routes to OLS or AgroPortal),
+   **write back** with `cache.put_term`, then re-read the stored row so the returned shape is
+   identical hit-or-miss.
 
 Tool functions return a `(result, cache_hit)` tuple. The MCP/API wrappers unpack and return only
 `result`; `cache_hit` exists for tests and instrumentation. **Exception:** `validate_term` never
 caches and always hits OLS live — deprecation status must never be served stale.
+
+### Two backends, one interface
+CURIEs route to a backend by `config.ontology_source(prefix)`: the 11 EBI OLS4 ontologies →
+`OLSClient`, the 42 Crop Ontology (`CO_*`) dictionaries → `AgroPortalClient`. The servers hold a
+single `FederatedClient` (implements `OntologyClient`) exactly where they used to hold an
+`OLSClient`; tools are unchanged and call it through `_common.ols_client()`. AgroPortal differs
+from OLS in three ways the clients hide: it **requires an API key** (`AGROPORTAL_API_KEY` — the one
+exception to "no API key required"; keyless CO calls return a `no_api_key` error and OLS is
+unaffected), classes are addressed by full IRI single-URL-encoded (OLS double-encodes), and CO
+class IRIs carry the CURIE in the tail (`…/rdf/CO_320:0000625`). The cache is backend-agnostic.
 
 ### Two servers, one cache
 Both the MCP and API processes read *and* write the shared SQLite cache through `core/` — neither
@@ -72,7 +89,7 @@ touches SQLite directly. Concurrency safety comes from WAL mode + `busy_timeout`
 stale; the rule below is authoritative.)
 
 ### Lifespan
-Each server initializes the cache schema once and holds a single process-lifetime `OLSClient`
+Each server initializes the cache schema once and holds a single process-lifetime `FederatedClient`
 (MCP: `_lifespan` in `server.py`; API: `lifespan` in `main.py`). `--db-path` is exported to
 `ONTOMCP_DB_PATH` at boot so the lifespan resolves it after import-time defaults are set.
 

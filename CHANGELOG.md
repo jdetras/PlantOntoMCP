@@ -9,6 +9,18 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Crop Ontology (CO) via AgroPortal.** 42 per-crop trait dictionaries (Rice `CO_320`,
+  Wheat `CO_321`, Maize `CO_322`, …) are now a second backend behind the same 12 tools.
+  A new `FederatedClient` routes each CURIE to its source (EBI OLS4 or AgroPortal) and
+  merges `search` results across both. AgroPortal requires a free API key
+  (`AGROPORTAL_API_KEY`); when unset, the OLS4 ontologies work normally and CO lookups
+  return a structured `no_api_key` message. New `core/agroportal_client.py`,
+  `core/federated_client.py`, and `core/ontology_client.py` (shared `OntologyClient`
+  protocol); `suggest_ontology` routes recognized crops to their CO dictionary.
+  Known limit: CO trait/method/scale category nodes use name-based IRIs without CURIEs, so
+  CO `get_parents`/`get_children` can be sparse; the other tools are unaffected.
+
 ### Changed
 - **Retargeted the ontology registry from biomedical to plant & crop domains.** The
   registry now serves the Plant Ontology (PO), Plant Trait Ontology (TO), PECO, PPO,

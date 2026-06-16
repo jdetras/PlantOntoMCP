@@ -6,7 +6,9 @@ Kept tiny on purpose. Business logic lives in the individual tool modules.
 from contextlib import asynccontextmanager
 
 from ontomcp.core.config import ONTOLOGIES
-from ontomcp.core.ols_client import OLSClient, normalize_curie
+from ontomcp.core.federated_client import FederatedClient
+from ontomcp.core.ols_client import normalize_curie
+from ontomcp.core.ontology_client import OntologyClient
 
 
 def safe_normalize_curie(curie: str) -> tuple[str | None, dict | None]:
@@ -35,16 +37,18 @@ def normalize_ontologies(ontologies: list[str] | None) -> list[str] | None:
 
 
 @asynccontextmanager
-async def ols_client(client: OLSClient | None):
-    """Yield ``client`` if provided, else a fresh OLSClient closed on exit.
+async def ols_client(client: OntologyClient | None):
+    """Yield ``client`` if provided, else a fresh ``FederatedClient`` closed on exit.
 
-    Lets every tool accept an optional injected client (tests, bulk reuse) while
-    owning the lifecycle of a default one.
+    Lets every tool accept an optional injected backend (tests, bulk reuse) while
+    owning the lifecycle of a default one. The default is federated so a standalone
+    tool call routes Crop Ontology CURIEs to AgroPortal and everything else to OLS,
+    exactly like the shared client the servers hold.
     """
     if client is not None:
         yield client
         return
-    async with OLSClient() as owned:
+    async with FederatedClient() as owned:
         yield owned
 
 
