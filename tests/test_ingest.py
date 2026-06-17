@@ -25,6 +25,9 @@ _CLASSES_PAGE = {
         },
         # Root node has no parseable CURIE -> must be skipped.
         {"@id": "https://cropontology.org/rdf/Variable", "prefLabel": "Variable"},
+        # Bare category node: underscore-misparses to "ABIOTIC:stress" (not a
+        # registry ontology) -> must be dropped, not ingested as a junk row.
+        {"@id": "https://cropontology.org/rdf/Abiotic_stress", "prefLabel": "Abiotic_stress"},
     ],
     "pageCount": 1,
     "page": 1,
@@ -43,12 +46,16 @@ async def test_ingest_populates_fts_and_makes_terms_searchable(tmp_db_path):
         return httpx.Response(200, json=_CLASSES_PAGE)
 
     res = await ingest_crop_ontology("CO_320", db_path=tmp_db_path, client=_agro(handler))
-    assert res == {"ontology": "CO_320", "ingested": 2}  # root skipped
+    assert res == {"ontology": "CO_320", "ingested": 2}  # root + junk category node skipped
 
     # The term AgroPortal could not search is now found via our own FTS index.
     hits, cache_hit = await search_terms("plant height", ["CO_320"], db_path=tmp_db_path)
     assert cache_hit is True
     assert "CO_320:0000076" in {h["curie"] for h in hits}
+
+    # The misparsed category node was not ingested as a junk-ontology row.
+    found = await search_terms("Abiotic_stress", ["CO_320"], db_path=tmp_db_path)
+    assert all(h["ontology"] in config.ONTOLOGIES for h in found[0])
 
 
 async def test_search_terms_lazy_ingests_scoped_crop(tmp_db_path):

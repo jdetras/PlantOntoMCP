@@ -290,6 +290,11 @@ class AgroPortalClient:
                 label = obj.get("prefLabel")
                 if curie is None or not label:
                     continue
+                # Drop bare category nodes (e.g. @id ".../rdf/Abiotic_stress" →
+                # "ABIOTIC:stress"): only keep CURIEs whose prefix is a real
+                # registry ontology, never an underscore-misparsed name.
+                if curie.split(":", 1)[0] not in config.ONTOLOGIES:
+                    continue
                 out.append(
                     {
                         "curie": curie,
