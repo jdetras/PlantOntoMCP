@@ -247,6 +247,20 @@ structured `no_api_key` message. **Note:** AgroPortal models CO trait/method/sca
 with name-based IRIs that carry no CURIE, so CO `get_parents` / `get_children` results can be
 sparse; `get_term`, `search`, `validate_term`, and `map_across_ontologies` are unaffected.
 
+### Making Crop Ontology terms searchable (`ingest-crop`)
+
+AgroPortal serves every CO class by CURIE but never built a free-text search index for some
+submissions (e.g. rice `CO_320`, maize `CO_322`), so `search_terms("plant height", ["CO_320"])`
+can return nothing even though the term exists. Ingest the ontology's terms into the local FTS
+cache once to make them searchable (idempotent, ~14s for rice's 1,422 classes):
+
+```bash
+make ingest-crop CO=CO_320      # rice; or ALL=1 for every CO dictionary
+# or: uv run ontomcp-ingest-crop CO_320
+```
+
+After that, `search_terms("plant height", ["CO_320"])` returns `CO_320:0000076` ("Plant height").
+
 ### Crop Ontology trait dictionary (variable ↔ trait/method/scale)
 
 AgroPortal's CO snapshot exposes the Trait/Method/Scale/Variable term classes but **not the

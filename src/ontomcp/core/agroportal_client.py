@@ -261,6 +261,48 @@ class AgroPortalClient:
         version = body.get("version") or body.get("released")
         return version if isinstance(version, str) else None
 
+    async def fetch_all_classes(self, acronym: str, pagesize: int = 200) -> list[dict]:
+        """Page through every class of a CO ontology, for bulk cache ingestion.
+
+        Returns ``[{curie, ontology, label, definition}, ...]`` (the searchable
+        subset) for all classes with a parseable CURIE and a label — the
+        Trait/Method/Scale/Variable roots (no CURIE) are skipped. AgroPortal serves
+        these even for submissions it never search-indexed, so ingesting them gives
+        OntoMCP its own FTS index for Crop Ontology terms. Returns a one-element
+        error list on failure (never raises).
+        """
+        if not self.has_key:
+            return [self._no_key_error() | {"ontology": acronym}]
+        out: list[dict] = []
+        page = 1
+        while True:
+            try:
+                response = await self._get(
+                    f"/ontologies/{acronym}/classes",
+                    params={"page": page, "pagesize": pagesize, "display": "prefLabel,definition"},
+                )
+                response.raise_for_status()
+                body = response.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                return [{"error": "fetch_failed", "detail": str(exc), "ontology": acronym}]
+            for obj in body.get("collection", []):
+                curie = _iri_to_curie(obj.get("@id", ""))
+                label = obj.get("prefLabel")
+                if curie is None or not label:
+                    continue
+                out.append(
+                    {
+                        "curie": curie,
+                        "ontology": curie.split(":", 1)[0],
+                        "label": label,
+                        "definition": _parse_definition(obj),
+                    }
+                )
+            if page >= (body.get("pageCount") or 1):
+                break
+            page += 1
+        return out
+
     async def _fetch_hierarchy(self, curie: str, endpoint: str, rel_type: str) -> list[dict]:
         if not self.has_key:
             return [self._no_key_error() | {"curie": curie}]

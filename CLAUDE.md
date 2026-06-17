@@ -23,6 +23,7 @@ make types             # mypy src/ontomcp/
 make serve-api         # FastAPI on :8000  (uv run ontomcp-api)
 make serve-mcp         # MCP server, stdio  (uv run ontomcp-mcp)
 ONTOMCP_TRANSPORT=sse make serve-mcp   # MCP over SSE on :8001 for GPT/Codex/remote clients
+make ingest-crop CO=CO_320   # ingest a CO ontology's terms into the FTS cache (or ALL=1)
 ```
 
 Run a single test:
@@ -60,6 +61,10 @@ core/
   cache.py             SQLite layer (schema, FTS5 search, read/write). The ONLY module that
                        opens a DB connection. Backend-agnostic — caches CO/OLS terms and (in the
                        crop_records table) CO trait-dictionary variables/traits alike.
+  ingest.py            Batch loader: pages a CO ontology's classes from AgroPortal into the FTS
+                       cache (ontomcp-ingest-crop). Works around AgroPortal not search-indexing
+                       some CO submissions (rice CO_320, maize CO_322) — fetch-by-CURIE works but
+                       free-text search returns nothing until ingested.
   tools/               The 14 tool functions — cache-first orchestration lives here.
 ```
 

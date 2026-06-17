@@ -297,8 +297,12 @@ async def get_crop_variable(curie: str):
     live cropontology.org trait dictionary, which carries links the term lookup
     (get_term) cannot. For non-Crop-Ontology terms, use get_term instead.
 
+    To find the CURIE first, search the crop's ontology by trait name — e.g.
+    ``search_terms("plant height", ["CO_320"])`` for rice — then pass a resulting
+    variable CURIE here. Do not guess a CURIE.
+
     Args:
-        curie: A Crop Ontology variable CURIE, e.g. "CO_320:0000625".
+        curie: A Crop Ontology variable CURIE (from search_terms), e.g. "CO_320:0000777".
     """
     result, _ = await tools.get_crop_variable(curie, db_path=DB_PATH, client=_crop_client)
     return result
@@ -314,8 +318,12 @@ async def get_crop_trait(curie: str):
     defined for it (each pairs the trait with a method and scale — fetch one with
     get_crop_variable). Crop Ontology only; for other ontologies use get_term.
 
+    To find the CURIE first, search the crop's ontology by trait name — e.g.
+    ``search_terms("plant height", ["CO_320"])`` → ``CO_320:0000076`` (rice plant
+    height) — then pass it here. Do not guess a CURIE.
+
     Args:
-        curie: A Crop Ontology trait CURIE, e.g. "CO_320:0000092".
+        curie: A Crop Ontology trait CURIE (from search_terms), e.g. "CO_320:0000076".
     """
     result, _ = await tools.get_crop_trait(curie, db_path=DB_PATH, client=_crop_client)
     return result

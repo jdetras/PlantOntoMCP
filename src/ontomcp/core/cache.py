@@ -317,6 +317,41 @@ def put_term(db_path: Path, term_dict: dict) -> None:
         conn.close()
 
 
+def put_terms(db_path: Path, term_dicts: list[dict]) -> int:
+    """Bulk-upsert minimal term rows (curie/ontology/label/definition) in one pass.
+
+    For batch ingestion (e.g. loading a Crop Ontology's class list into the FTS
+    index). Idempotent per curie; the FTS triggers keep search in sync. Synonyms
+    are not touched here — use ``put_term`` for full records. Returns the count
+    written.
+    """
+    rows = [
+        (d["curie"], d["ontology"], d["label"], d.get("definition"))
+        for d in term_dicts
+        if d.get("curie") and d.get("ontology") and d.get("label")
+    ]
+    if not rows:
+        return 0
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.executemany(
+                """
+                INSERT INTO terms (curie, ontology, label, definition, fetched_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(curie) DO UPDATE SET
+                    ontology   = excluded.ontology,
+                    label      = excluded.label,
+                    definition = excluded.definition,
+                    fetched_at = CURRENT_TIMESTAMP
+                """,
+                rows,
+            )
+    finally:
+        conn.close()
+    return len(rows)
+
+
 def put_relationships(db_path: Path, pairs: list[tuple[str, str, str]]) -> None:
     """Bulk-insert ``(parent_curie, child_curie, rel_type)`` triples.
 

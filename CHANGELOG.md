@@ -10,6 +10,14 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Crop Ontology term ingestion (`ontomcp-ingest-crop`, `make ingest-crop`).** AgroPortal
+  serves every CO class by CURIE but never built a free-text search index for some submissions
+  (rice `CO_320`, maize `CO_322`, …), so `search_terms("plant height", ["CO_320"])` returned
+  nothing even though the term exists. The new batch loader pages an ontology's full class list
+  from AgroPortal into OntoMCP's FTS cache (~14s for rice's 1,422 classes), making CO terms
+  discoverable via the normal `search_terms` path independent of AgroPortal's indexing gaps.
+  Idempotent; run per-ontology or `--all`. New `core/ingest.py`, `cache.put_terms` bulk upsert,
+  `AgroPortalClient.fetch_all_classes`.
 - **Crop Ontology trait dictionary (`get_crop_variable`, `get_crop_trait`).** Two new
   tools resolve a Crop Ontology Variable into its Trait/Method/Scale triple (and a Trait
   into the Variables that measure it) via the live cropontology.org BrAPI v1 endpoint.
