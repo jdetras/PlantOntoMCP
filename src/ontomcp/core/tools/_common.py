@@ -6,6 +6,7 @@ Kept tiny on purpose. Business logic lives in the individual tool modules.
 from contextlib import asynccontextmanager
 
 from ontomcp.core.config import ONTOLOGIES
+from ontomcp.core.crop_ontology_client import CropOntologyClient
 from ontomcp.core.federated_client import FederatedClient
 from ontomcp.core.ols_client import normalize_curie
 from ontomcp.core.ontology_client import OntologyClient
@@ -49,6 +50,21 @@ async def ols_client(client: OntologyClient | None):
         yield client
         return
     async with FederatedClient() as owned:
+        yield owned
+
+
+@asynccontextmanager
+async def crop_client(client: CropOntologyClient | None):
+    """Yield ``client`` if provided, else a fresh ``CropOntologyClient`` closed on exit.
+
+    The Crop Ontology trait-dictionary tools talk to the cropontology.org BrAPI
+    endpoint, a separate concern from the OLS/AgroPortal term backends, so they
+    own their own client lifecycle exactly like ``ols_client`` does.
+    """
+    if client is not None:
+        yield client
+        return
+    async with CropOntologyClient() as owned:
         yield owned
 
 

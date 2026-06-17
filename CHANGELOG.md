@@ -10,8 +10,33 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Lazy auto-ingest of Crop Ontology terms in `search_terms`.** A search scoped to a CO
+  ontology (e.g. `search_terms("plant height", ["CO_320"])`) now ingests that ontology's
+  terms into the FTS index on first use (once per 30 days, tracked in a `crop_ingests`
+  table), so CO terms are discoverable with no manual step. The manual
+  `ontomcp-ingest-crop` / `make ingest-crop` still exists for bulk/offline population.
+  This also resolves the earlier finding that the FTS cache-first short-circuit could
+  silently exclude Crop Ontology results: CO is now guaranteed in the index before the read.
+- **Crop Ontology term ingestion (`ontomcp-ingest-crop`, `make ingest-crop`).** AgroPortal
+  serves every CO class by CURIE but never built a free-text search index for some submissions
+  (rice `CO_320`, maize `CO_322`, …), so `search_terms("plant height", ["CO_320"])` returned
+  nothing even though the term exists. The new batch loader pages an ontology's full class list
+  from AgroPortal into OntoMCP's FTS cache (~14s for rice's 1,422 classes), making CO terms
+  discoverable via the normal `search_terms` path independent of AgroPortal's indexing gaps.
+  Idempotent; run per-ontology or `--all`. New `core/ingest.py`, `cache.put_terms` bulk upsert,
+  `AgroPortalClient.fetch_all_classes`.
+- **Crop Ontology trait dictionary (`get_crop_variable`, `get_crop_trait`).** Two new
+  tools resolve a Crop Ontology Variable into its Trait/Method/Scale triple (and a Trait
+  into the Variables that measure it) via the live cropontology.org BrAPI v1 endpoint.
+  AgroPortal's CO snapshot carries the term classes but not the links between them; this
+  fills that gap with precise CURIEs for phenotyping annotation. New
+  `core/crop_ontology_client.py` (public BrAPI client, no API key), `core/tools/crop_variable.py`,
+  `/crop/variable/{curie}` and `/crop/trait/{curie}` HTTP routes, and a `crop_records`
+  cache table (7-day TTL). CO-only — other ontologies return `not_crop_ontology`.
+- Auto-load a local `.env` at startup (via `python-dotenv`) so `AGROPORTAL_API_KEY` and
+  other settings are picked up without exporting them or duplicating into a host config.
 - **Crop Ontology (CO) via AgroPortal.** 42 per-crop trait dictionaries (Rice `CO_320`,
-  Wheat `CO_321`, Maize `CO_322`, …) are now a second backend behind the same 12 tools.
+  Wheat `CO_321`, Maize `CO_322`, …) are now a second backend behind the shared tools.
   A new `FederatedClient` routes each CURIE to its source (EBI OLS4 or AgroPortal) and
   merges `search` results across both. AgroPortal requires a free API key
   (`AGROPORTAL_API_KEY`); when unset, the OLS4 ontologies work normally and CO lookups

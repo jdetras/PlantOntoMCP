@@ -122,6 +122,12 @@ AGROPORTAL_API_KEY = os.environ.get("AGROPORTAL_API_KEY")
 # (the CURIE is the IRI tail), so the template embeds the acronym and {id} = local id.
 AGROPORTAL_CLASS_IRI_BASE = "https://cropontology.org/rdf/"
 
+# Crop Ontology trait dictionary (BrAPI). AgroPortal's CO snapshot has the term
+# classes but NOT the links between them; the live trait dictionary at
+# cropontology.org serves each Variable with its full Trait/Method/Scale
+# composition over BrAPI v1. Public — no API key required.
+CROPONTOLOGY_BASE_URL = "https://cropontology.org/brapi/v1"
+
 # Crop Ontology per-crop ontologies on AgroPortal (acronym -> display name). The
 # acronym (e.g. ``CO_320``) is both the registry key and the CURIE prefix.
 CROP_ONTOLOGIES: dict[str, str] = {
@@ -210,6 +216,11 @@ DB_PATH = Path(
 
 # Re-fetch any term older than this. validate_term never uses the cache.
 CACHE_TTL_DAYS = 7
+
+# How long a Crop Ontology FTS ingest stays fresh before search_terms lazily
+# re-ingests it. Ontology releases are infrequent, so this is much longer than
+# the per-term TTL above.
+CROP_INGEST_TTL_DAYS = 30
 
 # SQLite busy timeout (ms). Both servers write through the shared core, so a
 # second writer must wait for the WAL write lock rather than fail immediately.

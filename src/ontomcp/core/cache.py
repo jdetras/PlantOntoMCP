@@ -1,9 +1,10 @@
 """SQLite cache layer: schema, read, write, FTS5 search.
 
-The core library is the only place that touches SQLite. FastAPI owns writes;
-FastMCP reads only. Every function opens its own connection (WAL + foreign keys
-set on open), works, and closes — simplest and safe across the two server
-processes.
+The core library is the only place that touches SQLite. Both servers read *and*
+write through it (cache-first with write-back on miss); concurrency safety comes
+from WAL mode + busy_timeout, not from restricting writes to one process. Every
+function opens its own connection (WAL + foreign keys set on open), works, and
+closes — simplest and safe across the two server processes.
 
 Callers pass canonical CURIEs (uppercase prefix, e.g. ``GO:0008219``). The cache
 stores whatever it is given; normalization is the caller's responsibility.
@@ -52,6 +53,20 @@ CREATE TABLE IF NOT EXISTS relationships (
 CREATE TABLE IF NOT EXISTS ontology_versions (
     ontology    TEXT PRIMARY KEY,
     version     TEXT,
+    fetched_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS crop_records (
+    curie        TEXT NOT NULL,
+    record_type  TEXT NOT NULL,
+    label        TEXT,
+    record_json  TEXT NOT NULL,
+    fetched_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (curie, record_type)
+);
+
+CREATE TABLE IF NOT EXISTS crop_ingests (
+    ontology    TEXT PRIMARY KEY,
     fetched_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -308,6 +323,71 @@ def put_term(db_path: Path, term_dict: dict) -> None:
         conn.close()
 
 
+def is_crop_ingested_fresh(db_path: Path, ontology: str, ttl_days: int) -> bool:
+    """True if ``ontology`` was ingested into the FTS cache within ``ttl_days``."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT fetched_at >= datetime('now', ?) AS fresh FROM crop_ingests WHERE ontology = ?",
+            (f"-{int(ttl_days)} days", ontology),
+        ).fetchone()
+    finally:
+        conn.close()
+    return bool(row and row["fresh"])
+
+
+def mark_crop_ingested(db_path: Path, ontology: str) -> None:
+    """Record that ``ontology`` was just ingested into the FTS cache (idempotent)."""
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO crop_ingests (ontology, fetched_at)
+                VALUES (?, CURRENT_TIMESTAMP)
+                ON CONFLICT(ontology) DO UPDATE SET fetched_at = CURRENT_TIMESTAMP
+                """,
+                (ontology,),
+            )
+    finally:
+        conn.close()
+
+
+def put_terms(db_path: Path, term_dicts: list[dict]) -> int:
+    """Bulk-upsert minimal term rows (curie/ontology/label/definition) in one pass.
+
+    For batch ingestion (e.g. loading a Crop Ontology's class list into the FTS
+    index). Idempotent per curie; the FTS triggers keep search in sync. Synonyms
+    are not touched here — use ``put_term`` for full records. Returns the count
+    written.
+    """
+    rows = [
+        (d["curie"], d["ontology"], d["label"], d.get("definition"))
+        for d in term_dicts
+        if d.get("curie") and d.get("ontology") and d.get("label")
+    ]
+    if not rows:
+        return 0
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.executemany(
+                """
+                INSERT INTO terms (curie, ontology, label, definition, fetched_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(curie) DO UPDATE SET
+                    ontology   = excluded.ontology,
+                    label      = excluded.label,
+                    definition = excluded.definition,
+                    fetched_at = CURRENT_TIMESTAMP
+                """,
+                rows,
+            )
+    finally:
+        conn.close()
+    return len(rows)
+
+
 def put_relationships(db_path: Path, pairs: list[tuple[str, str, str]]) -> None:
     """Bulk-insert ``(parent_curie, child_curie, rel_type)`` triples.
 
@@ -366,6 +446,63 @@ def put_ontology_version(db_path: Path, ontology: str, version: str | None) -> N
                     fetched_at = CURRENT_TIMESTAMP
                 """,
                 (ontology, version),
+            )
+    finally:
+        conn.close()
+
+
+def get_crop_record(db_path: Path, curie: str, record_type: str) -> dict | None:
+    """Return a cached Crop Ontology BrAPI record (variable/trait) as a dict, or None.
+
+    The stored ``record_json`` is the full tool-facing dict, so the returned shape
+    is identical whether served from cache or freshly fetched.
+    """
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT record_json FROM crop_records WHERE curie = ? AND record_type = ?",
+            (curie, record_type),
+        ).fetchone()
+    finally:
+        conn.close()
+    return json.loads(row["record_json"]) if row else None
+
+
+def get_crop_record_if_fresh(
+    db_path: Path, curie: str, record_type: str, ttl_days: int = CACHE_TTL_DAYS
+) -> dict | None:
+    """Return a cached crop record only if present and newer than ``ttl_days``."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT record_json, fetched_at >= datetime('now', ?) AS fresh "
+            "FROM crop_records WHERE curie = ? AND record_type = ?",
+            (f"-{int(ttl_days)} days", curie, record_type),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None or not row["fresh"]:
+        return None
+    return json.loads(row["record_json"])
+
+
+def put_crop_record(
+    db_path: Path, curie: str, record_type: str, label: str | None, record: dict
+) -> None:
+    """Upsert a Crop Ontology BrAPI record (idempotent), refreshing ``fetched_at``."""
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO crop_records (curie, record_type, label, record_json, fetched_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(curie, record_type) DO UPDATE SET
+                    label       = excluded.label,
+                    record_json = excluded.record_json,
+                    fetched_at  = CURRENT_TIMESTAMP
+                """,
+                (curie, record_type, label, json.dumps(record)),
             )
     finally:
         conn.close()

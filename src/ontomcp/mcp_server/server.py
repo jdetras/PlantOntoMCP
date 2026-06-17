@@ -1,4 +1,4 @@
-"""FastMCP server exposing the 10 OntoMCP tools to any MCP client.
+"""FastMCP server exposing the OntoMCP tools to any MCP client.
 
 Transport is client-agnostic: stdio (default — Claude Desktop / Claude Code) or
 SSE (GPT, Codex CLI, remote clients), selected at startup by ``ONTOMCP_TRANSPORT``.
@@ -21,6 +21,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from ontomcp.core import cache, config, tools
+from ontomcp.core.crop_ontology_client import CropOntologyClient
 from ontomcp.core.federated_client import FederatedClient
 from ontomcp.core.logging import configure_logging
 from ontomcp.core.ontology_client import OntologyClient
@@ -30,6 +31,10 @@ logger = logging.getLogger("ontomcp")
 # Process-lifetime shared ontology client (federates OLS + AgroPortal), created
 # in the lifespan below. Tests may replace this directly to inject a mock client.
 _client: OntologyClient | None = None
+
+# Process-lifetime Crop Ontology BrAPI client (trait-dictionary tools). Separate
+# concern from the term backends; tests may replace it directly.
+_crop_client: CropOntologyClient | None = None
 
 # Resolved at lifespan start so a late-set ONTOMCP_DB_PATH (from --db-path) wins.
 # Falls back to the import-time config default until then.
@@ -49,17 +54,20 @@ def _resolve_db_path() -> Path:
 @asynccontextmanager
 async def _lifespan(server: FastMCP):
     """Init the cache schema and hold one shared OLS client for the process."""
-    global _client, DB_PATH
+    global _client, _crop_client, DB_PATH
     configure_logging()
     DB_PATH = _resolve_db_path()
     cache.init_db(DB_PATH)
     logger.info("OntoMCP MCP server ready (db=%s)", DB_PATH)
     _client = FederatedClient()
+    _crop_client = CropOntologyClient()
     try:
         yield
     finally:
         await _client.aclose()
+        await _crop_client.aclose()
         _client = None
+        _crop_client = None
 
 
 mcp = FastMCP("OntoMCP", lifespan=_lifespan)
@@ -274,6 +282,50 @@ async def get_term_graph(curie: str, include_siblings: bool = True):
         db_path=DB_PATH,
         client=_client,
     )
+    return result
+
+
+@mcp.tool()
+async def get_crop_variable(curie: str):
+    """
+    Resolve a Crop Ontology VARIABLE into its trait-method-scale composition.
+
+    Use for Crop Ontology variable CURIEs (``CO_320:...``, ``CO_321:...``, etc.)
+    when a user needs the precise phenotyping triple for annotation: which Trait
+    is measured, by which Method, on which Scale — each as its own CURIE — plus
+    context of use, growth stage, and the scale's valid values. This pulls the
+    live cropontology.org trait dictionary, which carries links the term lookup
+    (get_term) cannot. For non-Crop-Ontology terms, use get_term instead.
+
+    To find the CURIE first, search the crop's ontology by trait name — e.g.
+    ``search_terms("plant height", ["CO_320"])`` for rice — then pass a resulting
+    variable CURIE here. Do not guess a CURIE.
+
+    Args:
+        curie: A Crop Ontology variable CURIE (from search_terms), e.g. "CO_320:0000777".
+    """
+    result, _ = await tools.get_crop_variable(curie, db_path=DB_PATH, client=_crop_client)
+    return result
+
+
+@mcp.tool()
+async def get_crop_trait(curie: str):
+    """
+    Resolve a Crop Ontology TRAIT and list the variables that measure it.
+
+    Use for Crop Ontology trait CURIEs (``CO_320:...``) to get the trait's name,
+    its human-readable trait code, and the CURIEs of every observation Variable
+    defined for it (each pairs the trait with a method and scale — fetch one with
+    get_crop_variable). Crop Ontology only; for other ontologies use get_term.
+
+    To find the CURIE first, search the crop's ontology by trait name — e.g.
+    ``search_terms("plant height", ["CO_320"])`` → ``CO_320:0000076`` (rice plant
+    height) — then pass it here. Do not guess a CURIE.
+
+    Args:
+        curie: A Crop Ontology trait CURIE (from search_terms), e.g. "CO_320:0000076".
+    """
+    result, _ = await tools.get_crop_trait(curie, db_path=DB_PATH, client=_crop_client)
     return result
 
 

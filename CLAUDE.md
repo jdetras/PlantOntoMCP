@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 OntoMCP grounds plant and crop concepts to canonical ontology CURIEs (e.g. leaf → `PO:0025034`,
 plant height → `TO:0000207`) over the EBI OLS4 API. The registry covers PO, TO, PECO, PPO, PSO,
-FLOPO, AGRO, ENVO, PCO (plant/crop) plus GO and SO (crop genomics). The same 12 tools are exposed
+FLOPO, AGRO, ENVO, PCO (plant/crop) plus GO and SO (crop genomics). The same 14 tools are exposed
 three ways: an MCP server (stdio for Claude, SSE for GPT/Codex/remote), a FastAPI HTTP server, and
 a Jupyter extension.
 
@@ -23,6 +23,7 @@ make types             # mypy src/ontomcp/
 make serve-api         # FastAPI on :8000  (uv run ontomcp-api)
 make serve-mcp         # MCP server, stdio  (uv run ontomcp-mcp)
 ONTOMCP_TRANSPORT=sse make serve-mcp   # MCP over SSE on :8001 for GPT/Codex/remote clients
+make ingest-crop CO=CO_320   # ingest a CO ontology's terms into the FTS cache (or ALL=1)
 ```
 
 Run a single test:
@@ -39,7 +40,7 @@ Three thin entrypoints over one core library. **All business logic lives in `cor
 `mcp_server/` and `api/` only adapt transport in and shape output back (a hard project rule).
 
 ```
-mcp_server/server.py   FastMCP — 12 @mcp.tool() wrappers, each delegating to core.tools
+mcp_server/server.py   FastMCP — 14 @mcp.tool() wrappers, each delegating to core.tools
 api/                   FastAPI — main.py app factory + routes/ (one router per tool group)
 jupyter_ext/           ipywidgets search panel, ipycytoscape graph, %%ontomcp cell magic;
                        talks to the FastAPI server over HTTP via client.py
@@ -51,12 +52,22 @@ core/
                        never touches SQLite. Public methods never raise (return error dicts).
   agroportal_client.py Async httpx client for AgroPortal (Crop Ontology backend), same surface
                        as ols_client. Needs AGROPORTAL_API_KEY; keyless calls return no_api_key.
-  ontology_client.py   The OntologyClient Protocol that all three clients satisfy.
+  crop_ontology_client.py  Async httpx client for the cropontology.org BrAPI v1 trait dictionary.
+                       Resolves a CO Variable's Trait/Method/Scale triple — links AgroPortal's OWL
+                       snapshot lacks. Separate concern: NOT an OntologyClient; public, no API key.
+  ontology_client.py   The OntologyClient Protocol that OLS/AgroPortal/Federated satisfy.
   federated_client.py  Routes each lookup to OLS or AgroPortal by config.ontology_source, and
                        partitions/merges search across both. This is the shared client.
   cache.py             SQLite layer (schema, FTS5 search, read/write). The ONLY module that
-                       opens a DB connection. Backend-agnostic — caches CO and OLS terms alike.
-  tools/               The 12 tool functions — cache-first orchestration lives here.
+                       opens a DB connection. Backend-agnostic — caches CO/OLS terms and (in the
+                       crop_records table) CO trait-dictionary variables/traits alike.
+  ingest.py            Batch loader: pages a CO ontology's classes from AgroPortal into the FTS
+                       cache (ontomcp-ingest-crop). Works around AgroPortal not search-indexing
+                       some CO submissions (rice CO_320, maize CO_322) — fetch-by-CURIE works but
+                       free-text search returns nothing until ingested. search_terms also calls
+                       this lazily for any in-scope CO ontology (once per CROP_INGEST_TTL_DAYS,
+                       tracked in the crop_ingests table), so CO discovery is automatic.
+  tools/               The 14 tool functions — cache-first orchestration lives here.
 ```
 
 ### Request flow (the cache-first pattern)
@@ -80,6 +91,17 @@ from OLS in three ways the clients hide: it **requires an API key** (`AGROPORTAL
 exception to "no API key required"; keyless CO calls return a `no_api_key` error and OLS is
 unaffected), classes are addressed by full IRI single-URL-encoded (OLS double-encodes), and CO
 class IRIs carry the CURIE in the tail (`…/rdf/CO_320:0000625`). The cache is backend-agnostic.
+
+### Crop Ontology trait dictionary (third backend)
+AgroPortal's CO submission is a static OWL snapshot: it has the Trait/Method/Scale/Variable term
+classes but **not the relationships linking them**, so a Variable's trait-method-scale composition
+is not reconstructable from it. The live cropontology.org BrAPI v1 endpoint serves that composition.
+`crop_ontology_client.CropOntologyClient` (public, no API key) backs two CO-only tools —
+`get_crop_variable` (Variable → trait/method/scale triple) and `get_crop_trait` (Trait → its
+Variables). These are a *separate concern* from term lookup: the client is not an `OntologyClient`,
+the tools route by `config.ontology_source(prefix) == "agroportal"` (else return `not_crop_ontology`)
+and get their own shared client via `_common.crop_client()`. Records cache in `crop_records`
+(keyed by `(curie, record_type)`, 7-day TTL) holding the full tool-facing dict as JSON.
 
 ### Two servers, one cache
 Both the MCP and API processes read *and* write the shared SQLite cache through `core/` — neither

@@ -58,6 +58,11 @@ def get_ols_client(request: Request) -> OLSClient:
     return request.app.state.ols_client
 
 
+def get_crop_client(request: Request):
+    """FastAPI dependency yielding the app-lifetime shared Crop Ontology BrAPI client."""
+    return request.app.state.crop_client
+
+
 def get_db_path(request: Request):
     """FastAPI dependency yielding the resolved cache DB path (honors --db-path)."""
     return request.app.state.db_path

@@ -1,6 +1,7 @@
 """The ontology tool functions. Both FastMCP and FastAPI call these directly."""
 
 from ontomcp.core.tools.bulk import bulk_annotate
+from ontomcp.core.tools.crop_variable import get_crop_trait, get_crop_variable
 from ontomcp.core.tools.graph import get_term_graph
 from ontomcp.core.tools.hierarchy import (
     get_ancestors,
@@ -26,4 +27,6 @@ __all__ = [
     "map_across_ontologies",
     "bulk_annotate",
     "get_term_graph",
+    "get_crop_variable",
+    "get_crop_trait",
 ]
