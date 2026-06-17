@@ -251,15 +251,19 @@ sparse; `get_term`, `search`, `validate_term`, and `map_across_ontologies` are u
 
 AgroPortal serves every CO class by CURIE but never built a free-text search index for some
 submissions (e.g. rice `CO_320`, maize `CO_322`), so `search_terms("plant height", ["CO_320"])`
-can return nothing even though the term exists. Ingest the ontology's terms into the local FTS
-cache once to make them searchable (idempotent, ~14s for rice's 1,422 classes):
+would otherwise return nothing even though the term exists.
+
+**This is handled automatically:** a search scoped to a CO ontology lazily ingests that
+ontology's terms into the local FTS cache on first use (once per 30 days), so
+`search_terms("plant height", ["CO_320"])` returns `CO_320:0000076` ("Plant height") with no
+manual step. The first such search pays a one-time ingest (~14s for rice's 1,422 classes).
+
+To pre-populate in bulk (e.g. for offline use), run the ingest directly:
 
 ```bash
-make ingest-crop CO=CO_320      # rice; or ALL=1 for every CO dictionary
+make ingest-crop CO=CO_320      # one crop; or ALL=1 for every CO dictionary (~5 min, ~5–7 MB)
 # or: uv run ontomcp-ingest-crop CO_320
 ```
-
-After that, `search_terms("plant height", ["CO_320"])` returns `CO_320:0000076` ("Plant height").
 
 ### Crop Ontology trait dictionary (variable ↔ trait/method/scale)
 

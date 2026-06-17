@@ -1,9 +1,10 @@
 """SQLite cache layer: schema, read, write, FTS5 search.
 
-The core library is the only place that touches SQLite. FastAPI owns writes;
-FastMCP reads only. Every function opens its own connection (WAL + foreign keys
-set on open), works, and closes — simplest and safe across the two server
-processes.
+The core library is the only place that touches SQLite. Both servers read *and*
+write through it (cache-first with write-back on miss); concurrency safety comes
+from WAL mode + busy_timeout, not from restricting writes to one process. Every
+function opens its own connection (WAL + foreign keys set on open), works, and
+closes — simplest and safe across the two server processes.
 
 Callers pass canonical CURIEs (uppercase prefix, e.g. ``GO:0008219``). The cache
 stores whatever it is given; normalization is the caller's responsibility.
@@ -62,6 +63,11 @@ CREATE TABLE IF NOT EXISTS crop_records (
     record_json  TEXT NOT NULL,
     fetched_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (curie, record_type)
+);
+
+CREATE TABLE IF NOT EXISTS crop_ingests (
+    ontology    TEXT PRIMARY KEY,
+    fetched_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_terms_ontology  ON terms(ontology);
@@ -313,6 +319,36 @@ def put_term(db_path: Path, term_dict: dict) -> None:
                     "INSERT INTO synonyms (curie, synonym, synonym_type) VALUES (?, ?, ?)",
                     [(curie, value, syn_type) for syn_type, value in pairs],
                 )
+    finally:
+        conn.close()
+
+
+def is_crop_ingested_fresh(db_path: Path, ontology: str, ttl_days: int) -> bool:
+    """True if ``ontology`` was ingested into the FTS cache within ``ttl_days``."""
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT fetched_at >= datetime('now', ?) AS fresh FROM crop_ingests WHERE ontology = ?",
+            (f"-{int(ttl_days)} days", ontology),
+        ).fetchone()
+    finally:
+        conn.close()
+    return bool(row and row["fresh"])
+
+
+def mark_crop_ingested(db_path: Path, ontology: str) -> None:
+    """Record that ``ontology`` was just ingested into the FTS cache (idempotent)."""
+    conn = _connect(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO crop_ingests (ontology, fetched_at)
+                VALUES (?, CURRENT_TIMESTAMP)
+                ON CONFLICT(ontology) DO UPDATE SET fetched_at = CURRENT_TIMESTAMP
+                """,
+                (ontology,),
+            )
     finally:
         conn.close()
 

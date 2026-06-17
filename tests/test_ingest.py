@@ -51,6 +51,57 @@ async def test_ingest_populates_fts_and_makes_terms_searchable(tmp_db_path):
     assert "CO_320:0000076" in {h["curie"] for h in hits}
 
 
+async def test_search_terms_lazy_ingests_scoped_crop(tmp_db_path):
+    from ontomcp.core import cache
+
+    cache.init_db(tmp_db_path)
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json=_CLASSES_PAGE)
+
+    # CO_320 not ingested yet -> the scoped search lazily ingests it, then finds it.
+    hits, _ = await search_terms(
+        "plant height", ["CO_320"], db_path=tmp_db_path, ingest_client=_agro(handler)
+    )
+    assert calls["n"] >= 1
+    assert "CO_320:0000076" in {h["curie"] for h in hits}
+
+    # Second scoped search: ingest marker is fresh -> no re-ingest (handler raises if hit).
+    def boom(request):
+        raise AssertionError("fresh ingest must not be repeated")
+
+    hits2, _ = await search_terms(
+        "plant height", ["CO_320"], db_path=tmp_db_path, ingest_client=_agro(boom)
+    )
+    assert "CO_320:0000076" in {h["curie"] for h in hits2}
+
+
+async def test_search_terms_skips_ingest_for_ols_scope(tmp_db_path):
+    from ontomcp.core import cache
+    from ontomcp.core.ols_client import OLSClient
+
+    cache.init_db(tmp_db_path)
+
+    def boom(request):
+        raise AssertionError("an OLS-scoped search must not trigger a CO ingest")
+
+    ols = OLSClient(
+        client=httpx.AsyncClient(
+            base_url=config.OLS_BASE_URL,
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(200, json={"response": {"docs": []}})
+            ),
+        )
+    )
+    # Scope to PO (an OLS ontology): the lazy CO-ingest path must be skipped.
+    hits, _ = await search_terms(
+        "leaf", ["PO"], db_path=tmp_db_path, ingest_client=_agro(boom), client=ols
+    )
+    assert hits == []
+
+
 async def test_ingest_rejects_non_crop_ontology(tmp_db_path):
     res = await ingest_crop_ontology("PO", db_path=tmp_db_path, client=None)
     assert res["error"] == "not_crop_ontology"

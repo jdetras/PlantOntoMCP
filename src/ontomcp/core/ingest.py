@@ -55,6 +55,7 @@ async def ingest_crop_ontology(
         return classes[0] if isinstance(classes, list) else classes
 
     count = cache.put_terms(db_path, classes)
+    cache.mark_crop_ingested(db_path, acr)
     logger.info("ingested %d classes for %s", count, acr)
     return {"ontology": acr, "ingested": count}
 

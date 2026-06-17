@@ -64,7 +64,9 @@ core/
   ingest.py            Batch loader: pages a CO ontology's classes from AgroPortal into the FTS
                        cache (ontomcp-ingest-crop). Works around AgroPortal not search-indexing
                        some CO submissions (rice CO_320, maize CO_322) — fetch-by-CURIE works but
-                       free-text search returns nothing until ingested.
+                       free-text search returns nothing until ingested. search_terms also calls
+                       this lazily for any in-scope CO ontology (once per CROP_INGEST_TTL_DAYS,
+                       tracked in the crop_ingests table), so CO discovery is automatic.
   tools/               The 14 tool functions — cache-first orchestration lives here.
 ```
 

@@ -217,6 +217,11 @@ DB_PATH = Path(
 # Re-fetch any term older than this. validate_term never uses the cache.
 CACHE_TTL_DAYS = 7
 
+# How long a Crop Ontology FTS ingest stays fresh before search_terms lazily
+# re-ingests it. Ontology releases are infrequent, so this is much longer than
+# the per-term TTL above.
+CROP_INGEST_TTL_DAYS = 30
+
 # SQLite busy timeout (ms). Both servers write through the shared core, so a
 # second writer must wait for the WAL write lock rather than fail immediately.
 BUSY_TIMEOUT_MS = 5000

@@ -10,6 +10,13 @@ OntoMCP uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Lazy auto-ingest of Crop Ontology terms in `search_terms`.** A search scoped to a CO
+  ontology (e.g. `search_terms("plant height", ["CO_320"])`) now ingests that ontology's
+  terms into the FTS index on first use (once per 30 days, tracked in a `crop_ingests`
+  table), so CO terms are discoverable with no manual step. The manual
+  `ontomcp-ingest-crop` / `make ingest-crop` still exists for bulk/offline population.
+  This also resolves the earlier finding that the FTS cache-first short-circuit could
+  silently exclude Crop Ontology results: CO is now guaranteed in the index before the read.
 - **Crop Ontology term ingestion (`ontomcp-ingest-crop`, `make ingest-crop`).** AgroPortal
   serves every CO class by CURIE but never built a free-text search index for some submissions
   (rice `CO_320`, maize `CO_322`, …), so `search_terms("plant height", ["CO_320"])` returned
